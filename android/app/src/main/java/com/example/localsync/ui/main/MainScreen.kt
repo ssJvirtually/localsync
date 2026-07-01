@@ -141,7 +141,10 @@ fun MainScreen(
                         PhotosScreen(
                             items = mediaItems,
                             onItemClick = { item ->
-                                onItemClick(MediaViewer(item.filePath, item.mediaType.name))
+                                val index = mediaItems.indexOf(item)
+                                if (index != -1) {
+                                    onItemClick(MediaViewer(index))
+                                }
                             }
                         )
                     }
@@ -149,7 +152,10 @@ fun MainScreen(
                         SearchScreen(
                             items = mediaItems,
                             onItemClick = { item ->
-                                onItemClick(MediaViewer(item.filePath, item.mediaType.name))
+                                val index = mediaItems.indexOf(item)
+                                if (index != -1) {
+                                    onItemClick(MediaViewer(index))
+                                }
                             }
                         )
                     }

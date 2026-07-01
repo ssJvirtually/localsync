@@ -5,6 +5,8 @@ import android.widget.VideoView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -17,23 +19,38 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.rememberAsyncImagePainter
+import com.example.localsync.data.MediaItem
+import com.example.localsync.data.MediaType
 import java.io.File
 
 @Composable
 fun MediaViewerScreen(
-    filePath: String,
-    mediaType: String,
+    items: List<MediaItem>,
+    initialIndex: Int,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val file = File(filePath)
+    if (items.isEmpty() || initialIndex !in items.indices) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "No media loaded", color = Color.White)
+        }
+        return
+    }
+
+    val pagerState = rememberPagerState(initialPage = initialIndex) { items.size }
+    val currentItem = items.getOrNull(pagerState.currentPage)
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Custom Top Bar to avoid ExperimentalMaterial3Api warnings
+        // Custom Top Bar to display active file name
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -51,7 +68,7 @@ fun MediaViewerScreen(
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = file.name,
+                text = currentItem?.fileName ?: "",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 maxLines = 1,
@@ -59,41 +76,49 @@ fun MediaViewerScreen(
             )
         }
 
-        Box(
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!file.exists()) {
-                Text(
-                    text = "File not found: ${file.name}",
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            } else if (mediaType == "PHOTO") {
-                Image(
-                    painter = rememberAsyncImagePainter(model = file),
-                    contentDescription = "Photo Preview",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                AndroidView(
-                    factory = { context ->
-                        VideoView(context).apply {
-                            val mediaController = MediaController(context)
-                            mediaController.setAnchorView(this)
-                            setMediaController(mediaController)
-                            setVideoPath(file.absolutePath)
-                            setOnPreparedListener { mp ->
-                                mp.isLooping = false
-                                start()
+                .fillMaxWidth()
+        ) { page ->
+            val item = items[page]
+            val file = File(item.filePath)
+
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!file.exists()) {
+                    Text(
+                        text = "File not found: ${file.name}",
+                        color = Color.Red,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                } else if (item.mediaType == MediaType.PHOTO) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = file),
+                        contentDescription = "Photo Preview",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    AndroidView(
+                        factory = { context ->
+                            VideoView(context).apply {
+                                val mediaController = MediaController(context)
+                                mediaController.setAnchorView(this)
+                                setMediaController(mediaController)
+                                setVideoPath(file.absolutePath)
+                                setOnPreparedListener { mp ->
+                                    mp.isLooping = false
+                                    start()
+                                }
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }

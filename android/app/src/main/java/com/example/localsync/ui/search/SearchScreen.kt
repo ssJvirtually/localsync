@@ -3,12 +3,14 @@ package com.example.localsync.ui.search
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.localsync.data.MediaItem
 import com.example.localsync.ui.photos.PhotoTile
+import com.example.localsync.ui.photos.verticalScrollbar
 
 @Composable
 fun SearchScreen(
@@ -70,9 +72,14 @@ fun SearchScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
+            val listState = rememberLazyListState()
+
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScrollbar(listState)
             ) {
                 // Chunk search results into rows of 4
                 val chunked = filteredItems.chunked(4)
