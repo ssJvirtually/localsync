@@ -9,9 +9,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.work.*
 import kotlinx.coroutines.launch
 import com.example.localsync.data.AppDatabase
 import com.example.localsync.theme.LocalSyncTheme
+import com.example.localsync.worker.SyncWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,9 +29,29 @@ class MainActivity : ComponentActivity() {
       }
     }
 
+    // Schedule background WorkManager task
+    scheduleBackgroundSync()
+
     enableEdgeToEdge()
     setContent {
       LocalSyncTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
     }
+  }
+
+  private fun scheduleBackgroundSync() {
+    val constraints = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.UNMETERED) // Only run on Wi-Fi
+        .setRequiresBatteryNotLow(true)
+        .build()
+
+    val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(1, TimeUnit.HOURS)
+        .setConstraints(constraints)
+        .build()
+
+    WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+        "LocalSyncPeriodicBackup",
+        ExistingPeriodicWorkPolicy.KEEP,
+        syncRequest
+    )
   }
 }
