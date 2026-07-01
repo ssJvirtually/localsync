@@ -1,0 +1,128 @@
+.root {
+    -fx-background-color: #121214;
+    -fx-font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.sidebar {
+    -fx-background-color: #1a1a1e;
+    -fx-padding: 20;
+    -fx-spacing: 15;
+}
+
+.sidebar-title {
+    -fx-fill: #ffffff;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.sidebar-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #b3b3b3;
+    -fx-font-size: 14px;
+    -fx-alignment: center-left;
+    -fx-padding: 10 15;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-pref-width: 180;
+}
+
+.sidebar-btn:hover {
+    -fx-background-color: #2a2a30;
+    -fx-text-fill: #ffffff;
+}
+
+.sidebar-btn-active {
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+
+.main-content {
+    -fx-padding: 30;
+    -fx-background-color: #121214;
+}
+
+.card {
+    -fx-background-color: #1a1a1e;
+    -fx-background-radius: 12;
+    -fx-padding: 25;
+    -fx-spacing: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 4);
+}
+
+.title-text {
+    -fx-fill: #ffffff;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.body-text {
+    -fx-fill: #9ca3af;
+    -fx-font-size: 14px;
+}
+
+.code-text {
+    -fx-font-family: 'Courier New', monospace;
+    -fx-fill: #60a5fa;
+    -fx-font-size: 13px;
+}
+
+.primary-btn {
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-padding: 10 20;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.primary-btn:hover {
+    -fx-background-color: #2563eb;
+}
+
+.danger-btn {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-padding: 10 20;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.danger-btn:hover {
+    -fx-background-color: #dc2626;
+}
+
+.table-view {
+    -fx-background-color: #1a1a1e;
+    -fx-background-radius: 8;
+    -fx-padding: 5;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #2a2a30;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-text-fill: #ffffff;
+}
+
+.table-row-cell {
+    -fx-background-color: #1a1a1e;
+    -fx-text-fill: #ffffff;
+}
+
+.table-row-cell:filled:hover {
+    -fx-background-color: #2a2a30;
+}
+
+.table-cell {
+    -fx-text-fill: #e5e7eb;
+}
+
+.text-area {
+    -fx-control-inner-background: #1a1a1e;
+    -fx-text-fill: #34d399;
+    -fx-font-family: 'Courier New', monospace;
+}
