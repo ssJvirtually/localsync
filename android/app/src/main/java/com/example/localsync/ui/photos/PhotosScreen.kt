@@ -2,6 +2,7 @@ package com.example.localsync.ui.photos
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +32,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun PhotosScreen(
     items: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Group photos by Month Year
@@ -84,6 +86,7 @@ fun PhotosScreen(
                             if (i < rowItems.size) {
                                 PhotoTile(
                                     item = rowItems[i],
+                                    onItemClick = onItemClick,
                                     modifier = Modifier.weight(1f)
                                 )
                             } else {
@@ -100,6 +103,7 @@ fun PhotosScreen(
 @Composable
 fun PhotoTile(
     item: MediaItem,
+    onItemClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -107,6 +111,7 @@ fun PhotoTile(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onItemClick(item) }
     ) {
         Image(
             painter = rememberAsyncImagePainter(model = File(item.filePath)),

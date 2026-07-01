@@ -16,7 +16,7 @@ public class HttpServer {
     private final int port;
     private final String serverToken;
     private final DatabaseManager dbManager;
-    private final String backupDir;
+    private String backupDir;
     private Javalin app;
     private UploadListener uploadListener;
 
@@ -33,6 +33,10 @@ public class HttpServer {
         this.port = port;
         this.serverToken = serverToken;
         this.dbManager = dbManager;
+        this.backupDir = backupDir;
+    }
+
+    public void setBackupDir(String backupDir) {
         this.backupDir = backupDir;
     }
 

@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.localsync.ui.main.MainScreen
+import com.example.localsync.ui.photos.MediaViewerScreen
 
 @Composable
 fun MainNavigation() {
@@ -21,6 +22,13 @@ fun MainNavigation() {
       entryProvider {
         entry<Main> {
           MainScreen(onItemClick = { navKey -> backStack.add(navKey) }, modifier = Modifier.safeDrawingPadding().padding(16.dp))
+        }
+        entry<MediaViewer> { key ->
+          MediaViewerScreen(
+            filePath = key.filePath,
+            mediaType = key.mediaType,
+            onBack = { backStack.removeLastOrNull() }
+          )
         }
       },
   )

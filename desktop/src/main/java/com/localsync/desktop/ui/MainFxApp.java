@@ -51,6 +51,7 @@ public class MainFxApp extends Application {
     private Button btnPairing;
     private Button btnDevices;
     private Button btnLogs;
+    private Button btnSettings;
 
     @Override
     public void start(Stage primaryStage) {
@@ -92,7 +93,11 @@ public class MainFxApp extends Application {
         btnLogs.getStyleClass().add("sidebar-btn");
         btnLogs.setOnAction(e -> switchView("logs"));
 
-        sidebar.getChildren().addAll(titleText, btnPairing, btnDevices, btnLogs);
+        btnSettings = new Button("Settings");
+        btnSettings.getStyleClass().add("sidebar-btn");
+        btnSettings.setOnAction(e -> switchView("settings"));
+
+        sidebar.getChildren().addAll(titleText, btnPairing, btnDevices, btnLogs, btnSettings);
         mainLayout.setLeft(sidebar);
 
         // 2. Main Content Area
@@ -103,13 +108,15 @@ public class MainFxApp extends Application {
         VBox pairingView = createPairingView();
         VBox devicesView = createDevicesView();
         VBox logsView = createLogsView();
+        VBox settingsView = createSettingsView();
 
-        contentArea.getChildren().addAll(pairingView, devicesView, logsView);
+        contentArea.getChildren().addAll(pairingView, devicesView, logsView, settingsView);
 
         // Show pairing view by default
         pairingView.setVisible(true);
         devicesView.setVisible(false);
         logsView.setVisible(false);
+        settingsView.setVisible(false);
 
         mainLayout.setCenter(contentArea);
 
@@ -153,7 +160,8 @@ public class MainFxApp extends Application {
         }
 
         // Backup directory
-        backupDir = dbManager.getConfig("backup_dir", "./backups");
+        String defaultBackupDir = System.getProperty("user.home") + File.separator + "localsync";
+        backupDir = dbManager.getConfig("backup_dir", defaultBackupDir);
         dbManager.setConfig("backup_dir", backupDir);
         File dir = new File(backupDir);
         if (!dir.exists()) {
@@ -202,6 +210,7 @@ public class MainFxApp extends Application {
         btnPairing.getStyleClass().remove("sidebar-btn-active");
         btnDevices.getStyleClass().remove("sidebar-btn-active");
         btnLogs.getStyleClass().remove("sidebar-btn-active");
+        btnSettings.getStyleClass().remove("sidebar-btn-active");
 
         contentArea.getChildren().forEach(node -> node.setVisible(false));
 
@@ -214,6 +223,9 @@ public class MainFxApp extends Application {
         } else if (viewName.equals("logs")) {
             btnLogs.getStyleClass().add("sidebar-btn-active");
             contentArea.getChildren().get(2).setVisible(true);
+        } else if (viewName.equals("settings")) {
+            btnSettings.getStyleClass().add("sidebar-btn-active");
+            contentArea.getChildren().get(3).setVisible(true);
         }
     }
 
@@ -411,4 +423,67 @@ public class MainFxApp extends Application {
         value *= Long.signum(bytes);
         return String.format("%.2f %ciB", value / 1024.0, ci.current());
     }
+
+    private VBox createSettingsView() {
+        VBox vbox = new VBox();
+        vbox.getStyleClass().add("card");
+        vbox.setSpacing(20);
+
+        Text title = new Text("Settings");
+        title.getStyleClass().add("title-text");
+
+        Label lblBackupDir = new Label("Backup Directory:");
+        lblBackupDir.getStyleClass().add("body-text");
+
+        TextField txtBackupDir = new TextField(backupDir);
+        txtBackupDir.setEditable(false);
+        txtBackupDir.setPrefWidth(500);
+        txtBackupDir.getStyleClass().add("text-field");
+
+        Button btnBrowse = new Button("Browse...");
+        btnBrowse.getStyleClass().add("secondary-btn");
+        btnBrowse.setOnAction(e -> {
+            javafx.stage.DirectoryChooser directoryChooser = new javafx.stage.DirectoryChooser();
+            directoryChooser.setTitle("Select Backup Directory");
+            File currentDir = new File(txtBackupDir.getText());
+            if (currentDir.exists() && currentDir.isDirectory()) {
+                directoryChooser.setInitialDirectory(currentDir);
+            }
+            File selectedDirectory = directoryChooser.showDialog(txtBackupDir.getScene().getWindow());
+            if (selectedDirectory != null) {
+                txtBackupDir.setText(selectedDirectory.getAbsolutePath());
+            }
+        });
+
+        HBox pathBox = new HBox(10);
+        pathBox.getChildren().addAll(txtBackupDir, btnBrowse);
+
+        Button btnSave = new Button("Save Settings");
+        btnSave.getStyleClass().add("primary-btn");
+        btnSave.setOnAction(e -> {
+            String newPath = txtBackupDir.getText();
+            if (newPath != null && !newPath.trim().isEmpty()) {
+                File newDir = new File(newPath);
+                if (!newDir.exists()) {
+                    newDir.mkdirs();
+                }
+                dbManager.setConfig("backup_dir", newPath);
+                backupDir = newPath;
+                if (httpServer != null) {
+                    httpServer.setBackupDir(newPath);
+                }
+                log("Backup directory updated to: " + newPath);
+                
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Settings Saved");
+                alert.setHeaderText(null);
+                alert.setContentText("The backup directory was successfully updated!");
+                alert.showAndWait();
+            }
+        });
+
+        vbox.getChildren().addAll(title, lblBackupDir, pathBox, btnSave);
+        return vbox;
+    }
 }
+

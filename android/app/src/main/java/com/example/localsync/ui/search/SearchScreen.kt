@@ -13,6 +13,7 @@ import com.example.localsync.ui.photos.PhotoTile
 @Composable
 fun SearchScreen(
     items: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -41,17 +42,27 @@ fun SearchScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (searchQuery.trim().isEmpty()) {
-            Text(
-                text = "Enter a search query to find photos.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(
+                    text = "Type to search your backed up files.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
         } else if (filteredItems.isEmpty()) {
-            Text(
-                text = "No photos matching \"$searchQuery\" found.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(
+                    text = "No photos matching \"$searchQuery\" found.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
         } else {
             Text(
                 text = "Found ${filteredItems.size} results",
@@ -74,6 +85,7 @@ fun SearchScreen(
                             if (i < rowItems.size) {
                                 PhotoTile(
                                     item = rowItems[i],
+                                    onItemClick = onItemClick,
                                     modifier = Modifier.weight(1f)
                                 )
                             } else {

@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import com.example.localsync.MediaViewer
 import com.example.localsync.data.DataRepository
 import com.example.localsync.service.BackupForegroundService
 import com.example.localsync.ui.pairing.PairingScreen
@@ -137,10 +138,20 @@ fun MainScreen(
             Box(modifier = Modifier.padding(innerPadding)) {
                 when (currentTab) {
                     MainTab.PHOTOS -> {
-                        PhotosScreen(items = mediaItems)
+                        PhotosScreen(
+                            items = mediaItems,
+                            onItemClick = { item ->
+                                onItemClick(MediaViewer(item.filePath, item.mediaType.name))
+                            }
+                        )
                     }
                     MainTab.SEARCH -> {
-                        SearchScreen(items = mediaItems)
+                        SearchScreen(
+                            items = mediaItems,
+                            onItemClick = { item ->
+                                onItemClick(MediaViewer(item.filePath, item.mediaType.name))
+                            }
+                        )
                     }
                     MainTab.SETTINGS -> {
                         SettingsScreen(
