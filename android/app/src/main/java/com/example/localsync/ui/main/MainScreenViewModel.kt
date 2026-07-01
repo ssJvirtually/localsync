@@ -3,6 +3,7 @@ package com.example.localsync.ui.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.localsync.data.DataRepository
+import com.example.localsync.data.LocalSyncRepository
 import com.example.localsync.data.MediaItem
 import com.example.localsync.data.PairedServer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MainScreenViewModel(private val repository: DataRepository) : ViewModel() {
+class MainScreenViewModel(private val repository: LocalSyncRepository) : ViewModel() {
     
     val pairedServer: StateFlow<PairedServer?> = repository.pairedServerFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
