@@ -48,8 +48,8 @@ build/
 # Local backup directory
 desktop/backups/
 desktop/data/
-data/
-backups/
+/data/
+/backups/
 
 # Android specific
 .cxx/
