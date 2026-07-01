@@ -28,10 +28,6 @@ class BackupForegroundService : Service() {
         const val NOTIFICATION_CHANNEL_ID = "localsync_backup_channel"
         const val NOTIFICATION_ID = 1001
         
-        // Concurrency limits as per plan
-        val PHOTO_SEMAPHORE = Semaphore(4)
-        val VIDEO_SEMAPHORE = Semaphore(2)
-        
         // In-memory progress state for UI observers
         val _uploadProgress = MutableStateFlow<Map<Long, Int>>(emptyMap())
         val uploadProgress = _uploadProgress.asStateFlow()
@@ -42,6 +38,15 @@ class BackupForegroundService : Service() {
     private lateinit var repository: DataRepository
     private lateinit var mediaItemDao: MediaItemDao
     private lateinit var connectivityManager: ConnectivityManager
+    
+    @Volatile private var photoSemaphore = Semaphore(4)
+    @Volatile private var videoSemaphore = Semaphore(2)
+
+    private val powerReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            updateConcurrencyLimits()
+        }
+    }
     
     private var serviceJob = SupervisorJob()
     private var serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
@@ -72,6 +77,14 @@ class BackupForegroundService : Service() {
         createNotificationChannel()
         registerNetworkCallback()
         
+        // Register power connection broadcast receiver
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        }
+        registerReceiver(powerReceiver, filter)
+        updateConcurrencyLimits()
+        
         // Start Foreground immediately
         startForeground(
             NOTIFICATION_ID, 
@@ -100,6 +113,12 @@ class BackupForegroundService : Service() {
         super.onDestroy()
         isServiceRunning = false
         unregisterNetworkCallback()
+        
+        try {
+            unregisterReceiver(powerReceiver)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to unregister power receiver: ${e.message}")
+        }
         
         serviceScope.launch {
             // Cancel all work
@@ -175,7 +194,7 @@ class BackupForegroundService : Service() {
                     Log.d(TAG, "Processing batch of ${pendingItems.size} items...")
                     val batchJobs = pendingItems.map { item ->
                         launch {
-                            val semaphore = if (item.mediaType == MediaType.PHOTO) PHOTO_SEMAPHORE else VIDEO_SEMAPHORE
+                            val semaphore = if (item.mediaType == MediaType.PHOTO) photoSemaphore else videoSemaphore
                             semaphore.withPermit {
                                 processUpload(item, server)
                             }
@@ -278,6 +297,28 @@ class BackupForegroundService : Service() {
             )
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    private fun updateConcurrencyLimits() {
+        val isCharging = checkIsCharging()
+        val newPhotoLimit = if (isCharging) 6 else 4
+        val newVideoLimit = if (isCharging) 3 else 2
+        
+        Log.d(TAG, "Updating concurrency limits. Charging: $isCharging. Limits -> Photos: $newPhotoLimit, Videos: $newVideoLimit")
+        
+        photoSemaphore = Semaphore(newPhotoLimit)
+        videoSemaphore = Semaphore(newVideoLimit)
+    }
+
+    private fun checkIsCharging(): Boolean {
+        return try {
+            val intent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val status = intent?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || status == android.os.BatteryManager.BATTERY_STATUS_FULL
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking charging status: ${e.message}")
+            false
         }
     }
 }
