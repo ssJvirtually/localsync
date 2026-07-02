@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
@@ -135,7 +136,9 @@ fun SearchScreen(
                 var initialSelection by remember { mutableStateOf(emptyList<MediaItem>()) }
                 var isSelecting by remember { mutableStateOf(true) }
 
-                Box(
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(4),
                     modifier = Modifier
                         .fillMaxSize()
                         .pointerInput(groupedPhotosList) {
@@ -244,44 +247,38 @@ fun SearchScreen(
                                     }
                                 }
                             )
-                        }
+                        },
+                    contentPadding = PaddingValues(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(4),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(
-                            count = groupedPhotosList.size,
-                            span = { index ->
-                                val item = groupedPhotosList[index]
-                                val spanCount = if (item is GalleryItem.Header) 4 else 1
-                                GridItemSpan(spanCount)
-                            }
-                        ) { index ->
+                    items(
+                        count = groupedPhotosList.size,
+                        span = { index ->
                             val item = groupedPhotosList[index]
-                            when (item) {
-                                is GalleryItem.Header -> {
-                                    Text(
-                                        text = item.date,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
-                                    )
-                                }
-                                is GalleryItem.PhotoItem -> {
-                                    PhotoTile(
-                                        item = item.photo,
-                                        isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
-                                        isSelectionMode = isSelectionMode,
-                                        onItemClick = onItemClick,
-                                        onItemLongClick = onItemLongClick,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
+                            val spanCount = if (item is GalleryItem.Header) 4 else 1
+                            GridItemSpan(spanCount)
+                        }
+                    ) { index ->
+                        val item = groupedPhotosList[index]
+                        when (item) {
+                            is GalleryItem.Header -> {
+                                Text(
+                                    text = item.date,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
+                                )
+                            }
+                            is GalleryItem.PhotoItem -> {
+                                PhotoTile(
+                                    item = item.photo,
+                                    isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
+                                    isSelectionMode = isSelectionMode,
+                                    onItemClick = onItemClick,
+                                    onItemLongClick = onItemLongClick,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }
