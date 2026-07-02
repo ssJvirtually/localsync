@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun SettingsScreen(
-    pairedServer: PairedServer,
+    pairedServer: PairedServer?,
     totalCount: Int,
     backedUpCount: Int,
     isPaused: Boolean,
@@ -32,16 +32,19 @@ fun SettingsScreen(
     onSyncOnCellularTailscaleToggle: (Boolean) -> Unit,
     onBackupNowClick: () -> Unit,
     onUnpairClick: () -> Unit,
+    onPairClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
-    val pairedDate = remember(pairedServer.pairedAt) {
-        try {
-            LocalDateTime.ofInstant(Instant.ofEpochMilli(pairedServer.pairedAt), ZoneId.systemDefault())
-                .format(formatter)
-        } catch (e: Exception) {
-            "Unknown"
-        }
+    val pairedDate = remember(pairedServer?.pairedAt) {
+        if (pairedServer != null) {
+            try {
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(pairedServer.pairedAt), ZoneId.systemDefault())
+                    .format(formatter)
+            } catch (e: Exception) {
+                "Unknown"
+            }
+        } else ""
     }
 
     val scrollState = rememberScrollState()
@@ -88,121 +91,162 @@ fun SettingsScreen(
             }
         }
 
-        // Status Card (Dashboard Widget)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        if (pairedServer == null) {
+            // Pairing Call-to-action Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                )
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Backup Status",
+                        text = "Backup Offline & Locally",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Automatically back up your photos and videos to your computer over Wi-Fi. Safe, private, and with zero subscriptions.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = onPairClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Pair with your PC",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        } else {
+            // Status Card (Dashboard Widget)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Backup Status",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        val isBackupComplete = backedUpCount == totalCount && totalCount > 0
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isPaused) MaterialTheme.colorScheme.error
+                                        else if (isBackupComplete) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.secondary
+                                    )
+                            )
+                            Text(
+                                text = if (isPaused) "Paused" else if (isBackupComplete) "Fully Synced" else "Syncing...",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isPaused) MaterialTheme.colorScheme.error 
+                                        else if (isBackupComplete) MaterialTheme.colorScheme.primary 
+                                        else MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+
+                    val progress = if (totalCount > 0) backedUpCount.toFloat() / totalCount else 0f
+                    
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "$backedUpCount of $totalCount files backed up",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (totalCount > 0 && backedUpCount < totalCount) {
+                                Text(
+                                    text = "${totalCount - backedUpCount} items remaining",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "${(progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Paired PC Details Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Paired PC Details",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     
-                    val isBackupComplete = backedUpCount == totalCount && totalCount > 0
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isPaused) MaterialTheme.colorScheme.error
-                                    else if (isBackupComplete) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.secondary
-                                )
-                        )
-                        Text(
-                            text = if (isPaused) "Paused" else if (isBackupComplete) "Fully Synced" else "Syncing...",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isPaused) MaterialTheme.colorScheme.error 
-                                    else if (isBackupComplete) MaterialTheme.colorScheme.primary 
-                                    else MaterialTheme.colorScheme.secondary
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        DetailRowItem(label = "PC Name", value = pairedServer.pcName)
+                        DetailRowItem(label = "Server IPs (First is active)", value = pairedServer.fallbackIp.replace(",", "\n"))
+                        DetailRowItem(label = "Pairing Date", value = pairedDate)
+                        DetailRowItem(label = "Device ID", value = pairedServer.deviceId)
                     }
-                }
-
-                val progress = if (totalCount > 0) backedUpCount.toFloat() / totalCount else 0f
-                
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "$backedUpCount of $totalCount files backed up",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (totalCount > 0 && backedUpCount < totalCount) {
-                            Text(
-                                text = "${totalCount - backedUpCount} items remaining",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                    Text(
-                        text = "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-
-        // Paired PC Details Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = "Paired PC Details",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DetailRowItem(label = "PC Name", value = pairedServer.pcName)
-                    DetailRowItem(label = "Server IPs (First is active)", value = pairedServer.fallbackIp.replace(",", "\n"))
-                    DetailRowItem(label = "Pairing Date", value = pairedDate)
-                    DetailRowItem(label = "Device ID", value = pairedServer.deviceId)
                 }
             }
         }
@@ -244,7 +288,8 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = isPaused,
-                        onCheckedChange = onPauseToggle
+                        onCheckedChange = onPauseToggle,
+                        enabled = pairedServer != null
                     )
                 }
 
@@ -279,6 +324,7 @@ fun SettingsScreen(
 
                 Button(
                     onClick = onBackupNowClick,
+                    enabled = pairedServer != null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -293,47 +339,49 @@ fun SettingsScreen(
             }
         }
 
-        // Danger Zone Section
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        if (pairedServer != null) {
+            // Danger Zone Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+                )
             ) {
-                Text(
-                    text = "Danger Zone",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error
-                )
-                
-                Text(
-                    text = "Unpairing will delete all synced status information from this phone. Previously uploaded files on your PC will remain safe.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-
-                Button(
-                    onClick = onUnpairClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Unpair from PC",
-                        color = MaterialTheme.colorScheme.onError,
+                        text = "Danger Zone",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyLarge
+                        color = MaterialTheme.colorScheme.error
                     )
+                    
+                    Text(
+                        text = "Unpairing will delete all synced status information from this phone. Previously uploaded files on your PC will remain safe.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+
+                    Button(
+                        onClick = onUnpairClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Unpair from PC",
+                            color = MaterialTheme.colorScheme.onError,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                 }
             }
         }

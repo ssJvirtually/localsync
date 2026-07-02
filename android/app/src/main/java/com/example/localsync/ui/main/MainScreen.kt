@@ -71,6 +71,7 @@ fun MainScreen(
     val selectedItems = remember { mutableStateListOf<MediaItem>() }
     var isSelectionMode by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPairingScreen by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -195,14 +196,15 @@ fun MainScreen(
         )
     }
 
-    if (pairedServer == null) {
+    var currentTab by remember { mutableStateOf(MainTab.PHOTOS) }
+
+    if (showPairingScreen && pairedServer == null) {
         PairingScreen(
             repository = repository,
+            onBackClick = { showPairingScreen = false },
             modifier = modifier
         )
     } else {
-        var currentTab by remember { mutableStateOf(MainTab.PHOTOS) }
-
         Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
@@ -335,7 +337,7 @@ fun MainScreen(
                     }
                     MainTab.SETTINGS -> {
                         SettingsScreen(
-                            pairedServer = pairedServer!!,
+                            pairedServer = pairedServer,
                             totalCount = totalCount,
                             backedUpCount = backedUpCount,
                             isPaused = isPaused,
@@ -354,7 +356,8 @@ fun MainScreen(
                                     context.startService(intent)
                                 }
                             },
-                            onUnpairClick = { viewModel.unpair() }
+                            onUnpairClick = { viewModel.unpair() },
+                            onPairClick = { showPairingScreen = true }
                         )
                     }
                 }

@@ -281,7 +281,7 @@ fun SearchScreen(
                         count = groupedPhotosList.size,
                         span = { index ->
                             val item = groupedPhotosList[index]
-                            val spanCount = if (item is GalleryItem.Header) 4 else 1
+                            val spanCount = if (item is GalleryItem.Header) maxLineSpan else 1
                             GridItemSpan(spanCount)
                         }
                     ) { index ->
