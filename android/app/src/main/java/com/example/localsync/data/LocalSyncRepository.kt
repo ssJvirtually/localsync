@@ -9,6 +9,8 @@ interface LocalSyncRepository {
     val backedUpCountFlow: Flow<Int>
     fun isSyncPaused(): Boolean
     fun setSyncPaused(paused: Boolean)
+    fun isSyncOnCellularTailscale(): Boolean
+    fun setSyncOnCellularTailscale(enabled: Boolean)
     suspend fun scanLocalMedia()
     suspend fun unpair()
     suspend fun deleteMediaItem(item: MediaItem)

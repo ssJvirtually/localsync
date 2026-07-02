@@ -65,6 +65,7 @@ fun MainScreen(
     val totalCount by viewModel.totalCount.collectAsStateWithLifecycle()
     val backedUpCount by viewModel.backedUpCount.collectAsStateWithLifecycle()
     val isPaused by viewModel.isSyncPaused.collectAsStateWithLifecycle()
+    val isSyncOnCellularTailscale by viewModel.isSyncOnCellularTailscale.collectAsStateWithLifecycle()
 
     // Contextual selection states
     val selectedItems = remember { mutableStateListOf<MediaItem>() }
@@ -339,6 +340,8 @@ fun MainScreen(
                             backedUpCount = backedUpCount,
                             isPaused = isPaused,
                             onPauseToggle = { viewModel.toggleSyncPause(it) },
+                            isSyncOnCellularTailscale = isSyncOnCellularTailscale,
+                            onSyncOnCellularTailscaleToggle = { viewModel.toggleSyncOnCellularTailscale(it) },
                             onBackupNowClick = {
                                 viewModel.scanLocalMedia()
                                 // Force wake up service

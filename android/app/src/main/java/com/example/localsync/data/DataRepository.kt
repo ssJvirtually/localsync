@@ -24,7 +24,8 @@ data class QrPayload(
     val token: String,
     val pcName: String,
     val port: Int,
-    val localIp: String
+    val localIp: String,
+    val ips: List<String>? = null
 )
 
 class DataRepository(private val context: Context) : LocalSyncRepository {
@@ -48,63 +49,128 @@ class DataRepository(private val context: Context) : LocalSyncRepository {
     suspend fun pairWithServer(qrJson: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val payload = json.decodeFromString<QrPayload>(qrJson)
-            
+            return@withContext executePairing(payload)
+        } catch (e: Exception) {
+            Log.e("DataRepository", "Pairing failed: ${e.message}", e)
+            return@withContext Result.failure(e)
+        }
+    }
+
+    suspend fun pairManually(ip: String, port: Int, token: String, pcName: String): Result<String> = withContext(Dispatchers.IO) {
+        val payload = QrPayload(
+            service = "_photobackup._tcp.local.",
+            token = token,
+            pcName = pcName.ifBlank { "Manual PC" },
+            port = port,
+            localIp = ip,
+            ips = listOf(ip)
+        )
+        return@withContext executePairing(payload)
+    }
+
+    private suspend fun executePairing(payload: QrPayload): Result<String> = withContext(Dispatchers.IO) {
+        try {
             // Try mDNS resolve first
             var resolvedIp = payload.localIp
             var resolvedPort = payload.port
+            var resolved = false
             
             Log.d("DataRepository", "Attempting mDNS resolution for ${payload.pcName}...")
-            val resolved = kotlinx.coroutines.withTimeoutOrNull(3000) {
+            val resolvedMdns = kotlinx.coroutines.withTimeoutOrNull(3000) {
                 NsdResolver.resolve(context, payload.pcName)
             }
-            if (resolved != null) {
-                resolvedIp = resolved.first
-                resolvedPort = resolved.second
+            if (resolvedMdns != null) {
+                resolvedIp = resolvedMdns.first
+                resolvedPort = resolvedMdns.second
+                resolved = true
                 Log.d("DataRepository", "mDNS resolve succeeded: $resolvedIp:$resolvedPort")
             } else {
-                Log.w("DataRepository", "mDNS resolve failed/timed out, falling back to QR IP: $resolvedIp:$resolvedPort")
+                Log.w("DataRepository", "mDNS resolve failed/timed out, trying fallback IPs...")
             }
 
-            val url = "http://$resolvedIp:$resolvedPort/pair/verify"
-            
             val deviceName = Build.MODEL ?: "Android Device"
             val requestBodyJson = """{"token":"${payload.token}","deviceName":"$deviceName"}"""
             val body = requestBodyJson.toRequestBody("application/json; charset=utf-8".toMediaType())
-            
-            val request = Request.Builder()
-                .url(url)
-                .post(body)
-                .build()
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext Result.failure(IOException("Server error: ${response.code}"))
-                }
-                
-                val responseBody = response.body?.string() ?: return@withContext Result.failure(IOException("Empty response"))
-                val jsonObject = json.parseToJsonElement(responseBody)
-                val deviceId = jsonObject.jsonObject["deviceId"]?.jsonPrimitive?.content 
-                    ?: return@withContext Result.failure(IOException("No deviceId in response"))
-                
-                // Save to Room
-                val server = PairedServer(
-                    serviceName = payload.service,
-                    pcName = payload.pcName,
-                    token = payload.token,
-                    deviceId = deviceId,
-                    fallbackIp = "${payload.localIp}:${payload.port}",
-                    pairedAt = System.currentTimeMillis()
-                )
-                
-                val serverId = pairedServerDao.insertServer(server)
-                
-                // Trigger initial media scan in background
-                scanMediaAndInsert(serverId)
-                
-                return@withContext Result.success(payload.pcName)
+            val ipList = mutableListOf<String>()
+            payload.ips?.let { ipList.addAll(it) }
+            if (!ipList.contains(payload.localIp)) {
+                ipList.add(payload.localIp)
             }
+
+            var verifiedResponse: Pair<String, String>? = null // Pair(resolvedIp, deviceId)
+
+            if (resolved) {
+                val url = "http://$resolvedIp:$resolvedPort/pair/verify"
+                try {
+                    val request = Request.Builder().url(url).post(body).build()
+                    httpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val responseBody = response.body?.string() ?: ""
+                            val jsonObject = json.parseToJsonElement(responseBody)
+                            val deviceId = jsonObject.jsonObject["deviceId"]?.jsonPrimitive?.content
+                            if (deviceId != null) {
+                                verifiedResponse = Pair(resolvedIp, deviceId)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("DataRepository", "mDNS resolved connection failed: ${e.message}, falling back to IP list")
+                }
+            }
+
+            if (verifiedResponse == null) {
+                for (ip in ipList) {
+                    val url = "http://$ip:${payload.port}/pair/verify"
+                    Log.d("DataRepository", "Testing verify connection: $url")
+                    try {
+                        val request = Request.Builder().url(url).post(body).build()
+                        httpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                val responseBody = response.body?.string() ?: ""
+                                val jsonObject = json.parseToJsonElement(responseBody)
+                                val deviceId = jsonObject.jsonObject["deviceId"]?.jsonPrimitive?.content
+                                if (deviceId != null) {
+                                    resolvedIp = ip
+                                    resolvedPort = payload.port
+                                    verifiedResponse = Pair(ip, deviceId)
+                                    Log.d("DataRepository", "Verified connection on IP: $resolvedIp:$resolvedPort")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("DataRepository", "IP $ip:${payload.port} unreachable during verify: ${e.message}")
+                    }
+                    if (verifiedResponse != null) break
+                }
+            }
+
+            val finalResponse = verifiedResponse ?: return@withContext Result.failure(IOException("Server is unreachable on all network interfaces. Check if PC and phone are on the same Wi-Fi or connected to Tailscale."))
+
+            val finalIp = finalResponse.first
+            val deviceId = finalResponse.second
+
+            // Re-order ipList so that the working IP is first
+            ipList.remove(finalIp)
+            ipList.add(0, finalIp)
+            val fallbackString = ipList.joinToString(",") { "$it:${payload.port}" }
+
+            // Save to Room
+            val server = PairedServer(
+                serviceName = payload.service,
+                pcName = payload.pcName,
+                token = payload.token,
+                deviceId = deviceId,
+                fallbackIp = fallbackString,
+                pairedAt = System.currentTimeMillis()
+            )
+            
+            val serverId = pairedServerDao.insertServer(server)
+            scanMediaAndInsert(serverId)
+            
+            return@withContext Result.success(payload.pcName)
         } catch (e: Exception) {
-            Log.e("DataRepository", "Pairing failed: ${e.message}", e)
+            Log.e("DataRepository", "executePairing exception: ${e.message}", e)
             return@withContext Result.failure(e)
         }
     }
@@ -140,6 +206,18 @@ class DataRepository(private val context: Context) : LocalSyncRepository {
         context.getSharedPreferences("localsync_prefs", Context.MODE_PRIVATE)
             .edit()
             .putBoolean("sync_paused", paused)
+            .apply()
+    }
+
+    override fun isSyncOnCellularTailscale(): Boolean {
+        return context.getSharedPreferences("localsync_prefs", Context.MODE_PRIVATE)
+            .getBoolean("sync_on_cellular_tailscale", false)
+    }
+
+    override fun setSyncOnCellularTailscale(enabled: Boolean) {
+        context.getSharedPreferences("localsync_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("sync_on_cellular_tailscale", enabled)
             .apply()
     }
 

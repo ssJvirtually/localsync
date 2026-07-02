@@ -23,6 +23,8 @@ fun SettingsScreen(
     backedUpCount: Int,
     isPaused: Boolean,
     onPauseToggle: (Boolean) -> Unit,
+    isSyncOnCellularTailscale: Boolean,
+    onSyncOnCellularTailscaleToggle: (Boolean) -> Unit,
     onBackupNowClick: () -> Unit,
     onUnpairClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -107,7 +109,7 @@ fun SettingsScreen(
                 )
                 
                 DetailRow(label = "PC Name", value = pairedServer.pcName)
-                DetailRow(label = "Server IP", value = pairedServer.fallbackIp)
+                DetailRow(label = "Server IPs (First is active)", value = pairedServer.fallbackIp)
                 DetailRow(label = "Pairing Date", value = pairedDate)
                 DetailRow(label = "Device ID (Assigned)", value = pairedServer.deviceId.substring(0, 8) + "...")
             }
@@ -133,7 +135,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Pause Background Sync",
                             style = MaterialTheme.typography.bodyLarge,
@@ -151,7 +153,33 @@ fun SettingsScreen(
                     )
                 }
 
-                Divider()
+                HorizontalDivider()
+
+                // Sync on mobile network via Tailscale Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Sync on Mobile via Tailscale",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Allow uploads on mobile network only when connected to Tailscale IP",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = isSyncOnCellularTailscale,
+                        onCheckedChange = onSyncOnCellularTailscaleToggle
+                    )
+                }
+
+                HorizontalDivider()
 
                 Button(
                     onClick = onBackupNowClick,
@@ -186,12 +214,15 @@ fun DetailRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.weight(0.4f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(0.6f),
+            maxLines = 2
         )
     }
 }

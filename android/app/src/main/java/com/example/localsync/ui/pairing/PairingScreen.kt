@@ -63,6 +63,7 @@ fun PairingScreen(
 
     var isPairing by remember { mutableStateOf(false) }
     var qrDetected by remember { mutableStateOf(false) }
+    var showManualPairDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -92,6 +93,10 @@ fun PairingScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
                     Text("Grant Permission")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = { showManualPairDialog = true }) {
+                    Text("Pair Manually (Tailscale / Custom IP)")
                 }
             }
         } else {
@@ -218,7 +223,110 @@ fun PairingScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                TextButton(onClick = { showManualPairDialog = true }) {
+                    Text("Pair Manually (Tailscale / Custom IP)")
+                }
             }
         }
+    }
+
+    if (showManualPairDialog) {
+        var ipInput by remember { mutableStateOf("") }
+        var portInput by remember { mutableStateOf("8080") }
+        var tokenInput by remember { mutableStateOf("") }
+        var nameInput by remember { mutableStateOf("") }
+        var manualPairing by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { if (!manualPairing) showManualPairDialog = false },
+            title = { Text("Pair Manually") },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = ipInput,
+                        onValueChange = { ipInput = it },
+                        label = { Text("PC IP Address (e.g. 100.x.y.z)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = portInput,
+                        onValueChange = { portInput = it },
+                        label = { Text("Server Port") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = tokenInput,
+                        onValueChange = { tokenInput = it },
+                        label = { Text("Pairing Token") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text("PC Name (Optional)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = ipInput.isNotBlank() && tokenInput.isNotBlank() && !manualPairing,
+                    onClick = {
+                        val port = portInput.toIntOrNull() ?: 8080
+                        manualPairing = true
+                        scope.launch {
+                            val result = repository.pairManually(
+                                ip = ipInput.trim(),
+                                port = port,
+                                token = tokenInput.trim(),
+                                pcName = nameInput.trim()
+                            )
+                            manualPairing = false
+                            if (result.isSuccess) {
+                                showManualPairDialog = false
+                                Toast.makeText(
+                                    context,
+                                    "Paired successfully with ${result.getOrThrow()}!",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Manual pairing failed: ${result.exceptionOrNull()?.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                ) {
+                    if (manualPairing) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else {
+                        Text("Pair")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !manualPairing,
+                    onClick = { showManualPairDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

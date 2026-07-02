@@ -7,8 +7,10 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DiscoveryManager {
@@ -91,5 +93,29 @@ public class DiscoveryManager {
             System.err.println("Error retrieving network interfaces: " + e.getMessage());
         }
         return null;
+    }
+
+    public static List<String> getAllLocalIpAddresses() {
+        List<String> ips = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp()) continue;
+
+                Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    if (addr instanceof Inet4Address) {
+                        if (!addr.isLoopbackAddress()) {
+                            ips.add(addr.getHostAddress());
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            System.err.println("Error retrieving all local network interfaces: " + e.getMessage());
+        }
+        return ips;
     }
 }

@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -253,7 +255,49 @@ public class MainFxApp extends Application {
         btnRegen.getStyleClass().add("danger-btn");
         btnRegen.setOnAction(e -> regenerateToken());
 
-        vbox.getChildren().addAll(title, desc, qrImageView, qrTextLabel, btnRegen);
+        Button btnCopy = new Button("Copy Pairing Info");
+        btnCopy.getStyleClass().add("primary-btn");
+        btnCopy.setOnAction(e -> {
+            try {
+                List<String> allIps = DiscoveryManager.getAllLocalIpAddresses();
+                InetAddress localAddr = DiscoveryManager.getLocalIpAddress();
+                String localIp = localAddr != null ? localAddr.getHostAddress() : "127.0.0.1";
+                if (!allIps.contains(localIp)) {
+                    allIps.add(0, localIp);
+                }
+
+                Map<String, Object> qrData = new HashMap<>();
+                qrData.put("service", "_photobackup._tcp.local.");
+                qrData.put("token", serverToken);
+                qrData.put("pcName", pcName);
+                qrData.put("port", port);
+                qrData.put("localIp", localIp);
+                qrData.put("ips", allIps);
+
+                ObjectMapper mapper = new ObjectMapper();
+                String qrJson = mapper.writeValueAsString(qrData);
+
+                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+                content.putString(qrJson);
+                clipboard.setContent(content);
+
+                log("Pairing information copied to clipboard.");
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Info Copied");
+                alert.setHeaderText(null);
+                alert.setContentText("Pairing information JSON successfully copied to clipboard! You can paste it into the Android 'Pair Manually' dialog.");
+                alert.showAndWait();
+            } catch (Exception ex) {
+                log("Error copying pairing info: " + ex.getMessage());
+            }
+        });
+
+        HBox btnBox = new HBox(15);
+        btnBox.setAlignment(Pos.CENTER);
+        btnBox.getChildren().addAll(btnCopy, btnRegen);
+
+        vbox.getChildren().addAll(title, desc, qrImageView, qrTextLabel, btnBox);
 
         // Initial QR Generate
         updateQrCode();
@@ -285,8 +329,12 @@ public class MainFxApp extends Application {
 
     private void updateQrCode() {
         try {
+            List<String> allIps = DiscoveryManager.getAllLocalIpAddresses();
             InetAddress localAddr = DiscoveryManager.getLocalIpAddress();
             String localIp = localAddr != null ? localAddr.getHostAddress() : "127.0.0.1";
+            if (!allIps.contains(localIp)) {
+                allIps.add(0, localIp);
+            }
 
             Map<String, Object> qrData = new HashMap<>();
             qrData.put("service", "_photobackup._tcp.local.");
@@ -294,12 +342,36 @@ public class MainFxApp extends Application {
             qrData.put("pcName", pcName);
             qrData.put("port", port);
             qrData.put("localIp", localIp);
+            qrData.put("ips", allIps);
 
             ObjectMapper mapper = new ObjectMapper();
             String qrJson = mapper.writeValueAsString(qrData);
 
             qrImageView.setImage(QrCodeGenerator.generateQrCode(qrJson, 300, 300));
-            qrTextLabel.setText("Server IP: " + localIp + "  |  Port: " + port + "  |  Token: " + serverToken.substring(0, 8) + "...");
+
+            // Find Tailscale IP (starts with 100. and fits range)
+            String tailscaleIp = "";
+            for (String ip : allIps) {
+                if (ip.startsWith("100.")) {
+                    String[] parts = ip.split("\\.");
+                    if (parts.length >= 2) {
+                        try {
+                            int second = Integer.parseInt(parts[1]);
+                            if (second >= 64 && second <= 127) {
+                                tailscaleIp = ip;
+                                break;
+                            }
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+
+            String infoText = "Server LAN IP: " + localIp;
+            if (!tailscaleIp.isEmpty()) {
+                infoText += "  |  Tailscale IP: " + tailscaleIp;
+            }
+            infoText += "  |  Port: " + port + "  |  Token: " + serverToken.substring(0, 8) + "...";
+            qrTextLabel.setText(infoText);
         } catch (Exception e) {
             log("Error generating pairing QR code: " + e.getMessage());
             e.printStackTrace();

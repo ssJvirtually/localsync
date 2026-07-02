@@ -35,6 +35,26 @@ class MainScreenViewModel(private val repository: LocalSyncRepository) : ViewMod
         _isSyncPaused.value = paused
     }
 
+    private val _isSyncOnCellularTailscale = MutableStateFlow(repository.isSyncOnCellularTailscale())
+    val isSyncOnCellularTailscale: StateFlow<Boolean> = _isSyncOnCellularTailscale.asStateFlow()
+
+    fun toggleSyncOnCellularTailscale(enabled: Boolean) {
+        repository.setSyncOnCellularTailscale(enabled)
+        _isSyncOnCellularTailscale.value = enabled
+    }
+
+    fun pairManually(ip: String, port: Int, token: String, pcName: String, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            val dataRepo = repository as? DataRepository
+            if (dataRepo != null) {
+                val res = dataRepo.pairManually(ip, port, token, pcName)
+                onResult(res)
+            } else {
+                onResult(Result.failure(Exception("Repository is not DataRepository")))
+            }
+        }
+    }
+
     fun scanLocalMedia() {
         viewModelScope.launch {
             repository.scanLocalMedia()

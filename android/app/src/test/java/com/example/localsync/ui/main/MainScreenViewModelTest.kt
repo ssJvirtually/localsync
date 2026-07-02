@@ -31,6 +31,8 @@ private class FakeLocalSyncRepository : LocalSyncRepository {
     override val backedUpCountFlow: Flow<Int> = flowOf(0)
     override fun isSyncPaused(): Boolean = false
     override fun setSyncPaused(paused: Boolean) {}
+    override fun isSyncOnCellularTailscale(): Boolean = false
+    override fun setSyncOnCellularTailscale(enabled: Boolean) {}
     override suspend fun scanLocalMedia() {}
     override suspend fun unpair() {}
     override suspend fun deleteMediaItem(item: MediaItem) {}

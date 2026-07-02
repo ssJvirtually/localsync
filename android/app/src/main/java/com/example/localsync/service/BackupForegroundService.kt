@@ -63,7 +63,7 @@ class BackupForegroundService : Service() {
         override fun onLost(network: Network) {
             Log.d(TAG, "Network lost")
             isWifiConnected = false
-            stopActiveSync("Waiting for Wi-Fi...")
+            stopActiveSync("Waiting for Wi-Fi or Tailscale on mobile network...")
         }
     }
 
@@ -133,7 +133,7 @@ class BackupForegroundService : Service() {
 
     private fun registerNetworkCallback() {
         val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         connectivityManager.registerNetworkCallback(request, networkCallback)
     }
@@ -149,12 +149,17 @@ class BackupForegroundService : Service() {
     private fun checkWifiAndTriggerSync() {
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-        isWifiConnected = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        
+        val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        val isCellular = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+        val isCellularTailscaleEnabled = repository.isSyncOnCellularTailscale()
+        
+        isWifiConnected = isWifi || (isCellular && isCellularTailscaleEnabled)
         
         if (isWifiConnected) {
             startActiveSync()
         } else {
-            stopActiveSync("Waiting for Wi-Fi...")
+            stopActiveSync("Waiting for Wi-Fi or Tailscale on mobile network...")
         }
     }
 
