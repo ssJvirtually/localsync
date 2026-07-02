@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -40,11 +41,10 @@ private val gridMonthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", ja
 @Composable
 fun SearchScreen(
     items: List<MediaItem>,
-    selectedItems: List<MediaItem>,
+    selectedItems: SnapshotStateList<MediaItem>,
     isSelectionMode: Boolean,
+    onSelectionModeChange: (Boolean) -> Unit,
     onItemClick: (MediaItem) -> Unit,
-    onItemLongClick: (MediaItem) -> Unit,
-    onSelectionReplace: (List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -154,13 +154,14 @@ fun SearchScreen(
                                         initialSelection = selectedItems.toList()
                                         isSelecting = !initialSelection.any { it.mediaId == startItem.photo.mediaId }
                                         
-                                        val newSel = initialSelection.toMutableList()
                                         if (isSelecting) {
-                                            if (!newSel.any { it.mediaId == startItem.photo.mediaId }) newSel.add(startItem.photo)
+                                            if (!selectedItems.any { it.mediaId == startItem.photo.mediaId }) {
+                                                selectedItems.add(startItem.photo)
+                                            }
                                         } else {
-                                            newSel.removeAll { it.mediaId == startItem.photo.mediaId }
+                                            selectedItems.removeAll { it.mediaId == startItem.photo.mediaId }
                                         }
-                                        onSelectionReplace(newSel)
+                                        onSelectionModeChange(true)
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         
                                         // Start Auto-Scroll loop during drag
@@ -189,15 +190,23 @@ fun SearchScreen(
                                                                 (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
                                                             }
                                                             
-                                                            val currentSel = initialSelection.toMutableList()
+                                                            val targetIds = photosInRange.map { it.mediaId }.toSet()
+                                                            
+                                                            // 1. Remove items not in range and not in initial selection
+                                                            selectedItems.removeAll { item ->
+                                                                !initialSelection.any { it.mediaId == item.mediaId } && !targetIds.contains(item.mediaId)
+                                                            }
+                                                            
+                                                            // 2. Add or remove items based on current isSelecting mode
                                                             for (photo in photosInRange) {
                                                                 if (isSelecting) {
-                                                                    if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
+                                                                    if (!selectedItems.any { it.mediaId == photo.mediaId }) {
+                                                                        selectedItems.add(photo)
+                                                                    }
                                                                 } else {
-                                                                    currentSel.removeAll { it.mediaId == photo.mediaId }
+                                                                    selectedItems.removeAll { it.mediaId == photo.mediaId }
                                                                 }
                                                             }
-                                                            onSelectionReplace(currentSel)
                                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                         }
                                                     } catch (e: Exception) {
@@ -233,15 +242,23 @@ fun SearchScreen(
                                                 (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
                                             }
                                             
-                                            val currentSel = initialSelection.toMutableList()
+                                            val targetIds = photosInRange.map { it.mediaId }.toSet()
+                                            
+                                            // 1. Remove items not in range and not in initial selection
+                                            selectedItems.removeAll { item ->
+                                                !initialSelection.any { it.mediaId == item.mediaId } && !targetIds.contains(item.mediaId)
+                                            }
+                                            
+                                            // 2. Add or remove items based on isSelecting mode
                                             for (photo in photosInRange) {
                                                 if (isSelecting) {
-                                                    if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
+                                                    if (!selectedItems.any { it.mediaId == photo.mediaId }) {
+                                                        selectedItems.add(photo)
+                                                    }
                                                 } else {
-                                                    currentSel.removeAll { it.mediaId == photo.mediaId }
+                                                    selectedItems.removeAll { it.mediaId == photo.mediaId }
                                                 }
                                             }
-                                            onSelectionReplace(currentSel)
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         }
                                     }
@@ -276,7 +293,6 @@ fun SearchScreen(
                                     isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
                                     isSelectionMode = isSelectionMode,
                                     onItemClick = onItemClick,
-                                    onItemLongClick = onItemLongClick,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

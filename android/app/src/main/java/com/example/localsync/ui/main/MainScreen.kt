@@ -285,6 +285,7 @@ fun MainScreen(
                             items = mediaItems,
                             selectedItems = selectedItems,
                             isSelectionMode = isSelectionMode,
+                            onSelectionModeChange = { isSelectionMode = it },
                             onItemClick = { item ->
                                 if (isSelectionMode) {
                                     val isSelected = selectedItems.any { it.mediaId == item.mediaId }
@@ -302,17 +303,6 @@ fun MainScreen(
                                         onItemClick(MediaViewer(index))
                                     }
                                 }
-                            },
-                            onItemLongClick = { item ->
-                                if (!isSelectionMode) {
-                                    isSelectionMode = true
-                                    selectedItems.add(item)
-                                }
-                            },
-                            onSelectionReplace = { newSelection ->
-                                selectedItems.clear()
-                                selectedItems.addAll(newSelection)
-                                isSelectionMode = selectedItems.isNotEmpty()
                             }
                         )
                     }
@@ -321,6 +311,7 @@ fun MainScreen(
                             items = mediaItems,
                             selectedItems = selectedItems,
                             isSelectionMode = isSelectionMode,
+                            onSelectionModeChange = { isSelectionMode = it },
                             onItemClick = { item ->
                                 if (isSelectionMode) {
                                     val isSelected = selectedItems.any { it.mediaId == item.mediaId }
@@ -338,17 +329,6 @@ fun MainScreen(
                                         onItemClick(MediaViewer(index))
                                     }
                                 }
-                            },
-                            onItemLongClick = { item ->
-                                if (!isSelectionMode) {
-                                    isSelectionMode = true
-                                    selectedItems.add(item)
-                                }
-                            },
-                            onSelectionReplace = { newSelection ->
-                                selectedItems.clear()
-                                selectedItems.addAll(newSelection)
-                                isSelectionMode = selectedItems.isNotEmpty()
                             }
                         )
                     }

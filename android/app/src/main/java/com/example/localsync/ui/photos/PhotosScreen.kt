@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -85,11 +86,10 @@ val ScrollHandleIcon = ImageVector.Builder(
 @Composable
 fun PhotosScreen(
     items: List<MediaItem>,
-    selectedItems: List<MediaItem>,
+    selectedItems: SnapshotStateList<MediaItem>,
     isSelectionMode: Boolean,
+    onSelectionModeChange: (Boolean) -> Unit,
     onItemClick: (MediaItem) -> Unit,
-    onItemLongClick: (MediaItem) -> Unit,
-    onSelectionReplace: (List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Group photos by clean date header
@@ -157,13 +157,14 @@ fun PhotosScreen(
                                     initialSelection = selectedItems.toList()
                                     isSelecting = !initialSelection.any { it.mediaId == startItem.photo.mediaId }
                                     
-                                    val newSel = initialSelection.toMutableList()
                                     if (isSelecting) {
-                                        if (!newSel.any { it.mediaId == startItem.photo.mediaId }) newSel.add(startItem.photo)
+                                        if (!selectedItems.any { it.mediaId == startItem.photo.mediaId }) {
+                                            selectedItems.add(startItem.photo)
+                                        }
                                     } else {
-                                        newSel.removeAll { it.mediaId == startItem.photo.mediaId }
+                                        selectedItems.removeAll { it.mediaId == startItem.photo.mediaId }
                                     }
-                                    onSelectionReplace(newSel)
+                                    onSelectionModeChange(true)
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     
                                     // Start Auto-Scroll loop during drag
@@ -192,15 +193,23 @@ fun PhotosScreen(
                                                             (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
                                                         }
                                                         
-                                                        val currentSel = initialSelection.toMutableList()
+                                                        val targetIds = photosInRange.map { it.mediaId }.toSet()
+                                                        
+                                                        // 1. Remove items not in range and not in initial selection
+                                                        selectedItems.removeAll { item ->
+                                                            !initialSelection.any { it.mediaId == item.mediaId } && !targetIds.contains(item.mediaId)
+                                                        }
+                                                        
+                                                        // 2. Add or remove items based on current isSelecting mode
                                                         for (photo in photosInRange) {
                                                             if (isSelecting) {
-                                                                if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
+                                                                if (!selectedItems.any { it.mediaId == photo.mediaId }) {
+                                                                    selectedItems.add(photo)
+                                                                }
                                                             } else {
-                                                                currentSel.removeAll { it.mediaId == photo.mediaId }
+                                                                selectedItems.removeAll { it.mediaId == photo.mediaId }
                                                             }
                                                         }
-                                                        onSelectionReplace(currentSel)
                                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                     }
                                                 } catch (e: Exception) {
@@ -236,15 +245,23 @@ fun PhotosScreen(
                                             (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
                                         }
                                         
-                                        val currentSel = initialSelection.toMutableList()
+                                        val targetIds = photosInRange.map { it.mediaId }.toSet()
+                                        
+                                        // 1. Remove items not in range and not in initial selection
+                                        selectedItems.removeAll { item ->
+                                            !initialSelection.any { it.mediaId == item.mediaId } && !targetIds.contains(item.mediaId)
+                                        }
+                                        
+                                        // 2. Add or remove items based on isSelecting mode
                                         for (photo in photosInRange) {
                                             if (isSelecting) {
-                                                if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
+                                                if (!selectedItems.any { it.mediaId == photo.mediaId }) {
+                                                    selectedItems.add(photo)
+                                                }
                                             } else {
-                                                currentSel.removeAll { it.mediaId == photo.mediaId }
+                                                selectedItems.removeAll { it.mediaId == photo.mediaId }
                                             }
                                         }
-                                        onSelectionReplace(currentSel)
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     }
                                 }
@@ -279,7 +296,6 @@ fun PhotosScreen(
                                 isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
                                 isSelectionMode = isSelectionMode,
                                 onItemClick = onItemClick,
-                                onItemLongClick = onItemLongClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -585,7 +601,6 @@ fun PhotoTile(
     isSelected: Boolean,
     isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
-    onItemLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
