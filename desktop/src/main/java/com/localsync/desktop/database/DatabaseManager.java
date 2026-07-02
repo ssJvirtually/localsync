@@ -24,12 +24,13 @@ public class DatabaseManager {
     }
 
     public DatabaseManager() {
-        // Ensure data directory exists
-        File dataDir = new File("data");
+        // Store database in the user's home directory (e.g. C:\Users\<Username>\.localsync)
+        String dbFolder = System.getProperty("user.home") + File.separator + ".localsync";
+        File dataDir = new File(dbFolder);
         if (!dataDir.exists()) {
             dataDir.mkdirs();
         }
-        this.dbPath = "jdbc:sqlite:data/" + DB_NAME;
+        this.dbPath = "jdbc:sqlite:" + dbFolder + File.separator + DB_NAME;
         initializeDatabase();
     }
 
