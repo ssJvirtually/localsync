@@ -58,3 +58,6 @@ Captures/
 .externalNativeBuild
 .navigation
 /captureLayoutProgress.txt
+
+# Release Artifacts
+/release_artifacts/

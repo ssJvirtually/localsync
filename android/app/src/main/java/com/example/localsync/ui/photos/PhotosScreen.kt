@@ -142,7 +142,7 @@ fun PhotosScreen(
 
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Adaptive(110.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(groupedPhotosList) {

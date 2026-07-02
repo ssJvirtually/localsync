@@ -23,6 +23,18 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+
+    flavorDimensions += "mode"
+    productFlavors {
+        create("googlePlay") {
+            dimension = "mode"
+            applicationIdSuffix = ".play"
+            versionNameSuffix = "-play"
+        }
+        create("standalone") {
+            dimension = "mode"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
