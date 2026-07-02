@@ -129,7 +129,7 @@ public class MainFxApp extends Application {
         scene.getStylesheets().add(cssPath);
 
         primaryStage.setScene(scene);
-        primaryStage.setOnCloseRequest(e -> stopServices());
+        setupSystemTray(primaryStage);
         primaryStage.show();
 
         log("System started. PC Name: " + pcName + ", Port: " + port);
@@ -556,6 +556,88 @@ public class MainFxApp extends Application {
 
         vbox.getChildren().addAll(title, lblBackupDir, pathBox, btnSave);
         return vbox;
+    }
+
+    private void setupSystemTray(Stage stage) {
+        if (!java.awt.SystemTray.isSupported()) {
+            System.out.println("System tray is not supported on this platform.");
+            return;
+        }
+
+        // Configure JavaFX platform to not exit when the last window is hidden
+        Platform.setImplicitExit(false);
+
+        java.awt.SystemTray tray = java.awt.SystemTray.getSystemTray();
+        java.awt.Image image = createTrayIconImage();
+        java.awt.PopupMenu popup = new java.awt.PopupMenu();
+
+        // 1. Open Menu Item
+        java.awt.MenuItem openItem = new java.awt.MenuItem("Open LocalSync");
+        openItem.addActionListener(e -> Platform.runLater(() -> {
+            stage.show();
+            stage.toFront();
+        }));
+        popup.add(openItem);
+
+        // Separator
+        popup.addSeparator();
+
+        // 2. Exit Menu Item
+        java.awt.MenuItem exitItem = new java.awt.MenuItem("Exit");
+        exitItem.addActionListener(e -> {
+            Platform.runLater(() -> {
+                stopServices();
+                Platform.exit();
+                System.exit(0);
+            });
+        });
+        popup.add(exitItem);
+
+        java.awt.TrayIcon trayIcon = new java.awt.TrayIcon(image, "LocalSync Server", popup);
+        trayIcon.setImageAutoSize(true);
+
+        // Double click to restore window
+        trayIcon.addActionListener(e -> Platform.runLater(() -> {
+            stage.show();
+            stage.toFront();
+        }));
+
+        try {
+            tray.add(trayIcon);
+        } catch (java.awt.AWTException e) {
+            System.err.println("Could not add tray icon: " + e.getMessage());
+        }
+
+        // Handle Stage Close Event (Minimize to tray)
+        stage.setOnCloseRequest(event -> {
+            event.consume(); // Cancel default exit behavior
+            stage.hide();    // Hide the main window
+            
+            // Show a notification balloon on minimize
+            trayIcon.displayMessage(
+                "LocalSync Background",
+                "LocalSync is running in the system tray.",
+                java.awt.TrayIcon.MessageType.INFO
+            );
+        });
+    }
+
+    private java.awt.Image createTrayIconImage() {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g2 = image.createGraphics();
+        g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // Draw a beautiful purple circular background matching the app's branding
+        g2.setColor(new java.awt.Color(98, 0, 238));
+        g2.fillOval(0, 0, 16, 16);
+        
+        // Draw a small white check circle/point inside
+        g2.setColor(java.awt.Color.WHITE);
+        g2.drawOval(3, 3, 10, 10);
+        g2.fillOval(6, 6, 4, 4);
+        
+        g2.dispose();
+        return image;
     }
 }
 
