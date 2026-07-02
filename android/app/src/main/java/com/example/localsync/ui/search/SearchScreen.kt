@@ -135,6 +135,7 @@ fun SearchScreen(
                 var dragCurrentPosition by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
                 var initialSelection by remember { mutableStateOf(emptyList<MediaItem>()) }
                 var isSelecting by remember { mutableStateOf(true) }
+                var lastLongPressedPhoto by remember { mutableStateOf<MediaItem?>(null) }
 
                 LazyVerticalGrid(
                     state = gridState,
@@ -153,6 +154,7 @@ fun SearchScreen(
                                         isDraggingToSelect = true
                                         initialSelection = selectedItems.toList()
                                         isSelecting = !initialSelection.any { it.mediaId == startItem.photo.mediaId }
+                                        lastLongPressedPhoto = startItem.photo
                                         
                                         if (isSelecting) {
                                             if (!selectedItems.any { it.mediaId == startItem.photo.mediaId }) {
@@ -220,11 +222,17 @@ fun SearchScreen(
                                 },
                                 onDragEnd = {
                                     isDraggingToSelect = false
+                                    if (dragCurrentPhotoIndex != dragStartPhotoIndex) {
+                                        lastLongPressedPhoto = null
+                                    }
                                     dragStartPhotoIndex = null
                                     dragCurrentPhotoIndex = null
                                 },
                                 onDragCancel = {
                                     isDraggingToSelect = false
+                                    if (dragCurrentPhotoIndex != dragStartPhotoIndex) {
+                                        lastLongPressedPhoto = null
+                                    }
                                     dragStartPhotoIndex = null
                                     dragCurrentPhotoIndex = null
                                 },
@@ -292,7 +300,14 @@ fun SearchScreen(
                                     item = item.photo,
                                     isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
                                     isSelectionMode = isSelectionMode,
-                                    onItemClick = onItemClick,
+                                    onItemClick = { photo ->
+                                        if (lastLongPressedPhoto?.mediaId == photo.mediaId) {
+                                            lastLongPressedPhoto = null
+                                        } else {
+                                            lastLongPressedPhoto = null
+                                            onItemClick(photo)
+                                        }
+                                    },
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
