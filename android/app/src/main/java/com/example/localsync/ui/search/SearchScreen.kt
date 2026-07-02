@@ -279,6 +279,13 @@ fun SearchScreen(
                 ) {
                     items(
                         count = groupedPhotosList.size,
+                        key = { index ->
+                            val item = groupedPhotosList[index]
+                            when (item) {
+                                is GalleryItem.Header -> "header_${item.date}"
+                                is GalleryItem.PhotoItem -> item.photo.mediaId
+                            }
+                        },
                         span = { index ->
                             val item = groupedPhotosList[index]
                             val spanCount = if (item is GalleryItem.Header) maxLineSpan else 1

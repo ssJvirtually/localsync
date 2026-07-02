@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example.localsync.data.BackupStatus
 import com.example.localsync.data.MediaItem
 import com.example.localsync.data.MediaType
@@ -282,6 +283,13 @@ fun PhotosScreen(
             ) {
                 items(
                     count = groupedPhotosList.size,
+                    key = { index ->
+                        val item = groupedPhotosList[index]
+                        when (item) {
+                            is GalleryItem.Header -> "header_${item.date}"
+                            is GalleryItem.PhotoItem -> item.photo.mediaId
+                        }
+                    },
                     span = { index ->
                         val item = groupedPhotosList[index]
                         val spanCount = if (item is GalleryItem.Header) maxLineSpan else 1
@@ -642,7 +650,13 @@ fun PhotoTile(
             )
         } else {
             Image(
-                painter = rememberAsyncImagePainter(model = File(item.filePath)),
+                painter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(item.filePath)
+                        .crossfade(true)
+                        .size(256)
+                        .build()
+                ),
                 contentDescription = item.fileName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
