@@ -9,6 +9,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
@@ -70,6 +71,11 @@ public class MainFxApp extends Application {
         primaryStage.setTitle("LocalSync Backup PC Server");
         primaryStage.setMinWidth(900);
         primaryStage.setMinHeight(600);
+        try {
+            primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/icon.png")));
+        } catch (Exception e) {
+            System.err.println("Could not load app icon: " + e.getMessage());
+        }
 
         mainLayout = new BorderPane();
         String savedTheme = dbManager.getConfig("app_theme", "dark");
@@ -663,19 +669,24 @@ public class MainFxApp extends Application {
     }
 
     private java.awt.Image createTrayIconImage() {
+        try {
+            java.io.InputStream is = getClass().getResourceAsStream("/icon.png");
+            if (is != null) {
+                java.awt.Image img = javax.imageio.ImageIO.read(is);
+                return img.getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load tray icon: " + e.getMessage());
+        }
+        // Fallback programmatic icon
         java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g2 = image.createGraphics();
         g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        // Draw a beautiful purple circular background matching the app's branding
-        g2.setColor(new java.awt.Color(98, 0, 238));
+        g2.setColor(new java.awt.Color(59, 130, 246));
         g2.fillOval(0, 0, 16, 16);
-        
-        // Draw a small white check circle/point inside
         g2.setColor(java.awt.Color.WHITE);
         g2.drawOval(3, 3, 10, 10);
         g2.fillOval(6, 6, 4, 4);
-        
         g2.dispose();
         return image;
     }

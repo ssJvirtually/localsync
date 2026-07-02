@@ -55,6 +55,7 @@ if (-not (Test-Path $jpackagePath)) {
   --name LocalSync `
   --app-version 1.0.0 `
   --vendor "LocalSync" `
+  --icon src/main/resources/icon.ico `
   --input target/libs `
   --main-jar desktop-sync-1.0-SNAPSHOT.jar `
   --main-class com.localsync.desktop.DesktopApp `
