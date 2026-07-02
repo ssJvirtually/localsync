@@ -287,8 +287,9 @@ fun MainScreen(
                             isSelectionMode = isSelectionMode,
                             onItemClick = { item ->
                                 if (isSelectionMode) {
-                                    if (selectedItems.contains(item)) {
-                                        selectedItems.remove(item)
+                                    val isSelected = selectedItems.any { it.mediaId == item.mediaId }
+                                    if (isSelected) {
+                                        selectedItems.removeAll { it.mediaId == item.mediaId }
                                         if (selectedItems.isEmpty()) {
                                             isSelectionMode = false
                                         }
@@ -322,8 +323,9 @@ fun MainScreen(
                             isSelectionMode = isSelectionMode,
                             onItemClick = { item ->
                                 if (isSelectionMode) {
-                                    if (selectedItems.contains(item)) {
-                                        selectedItems.remove(item)
+                                    val isSelected = selectedItems.any { it.mediaId == item.mediaId }
+                                    if (isSelected) {
+                                        selectedItems.removeAll { it.mediaId == item.mediaId }
                                         if (selectedItems.isEmpty()) {
                                             isSelectionMode = false
                                         }

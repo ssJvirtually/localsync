@@ -149,13 +149,13 @@ fun SearchScreen(
                                         dragCurrentPosition = startOffset
                                         isDraggingToSelect = true
                                         initialSelection = selectedItems.toList()
-                                        isSelecting = !initialSelection.contains(startItem.photo)
+                                        isSelecting = !initialSelection.any { it.mediaId == startItem.photo.mediaId }
                                         
                                         val newSel = initialSelection.toMutableList()
                                         if (isSelecting) {
-                                            if (!newSel.contains(startItem.photo)) newSel.add(startItem.photo)
+                                            if (!newSel.any { it.mediaId == startItem.photo.mediaId }) newSel.add(startItem.photo)
                                         } else {
-                                            newSel.remove(startItem.photo)
+                                            newSel.removeAll { it.mediaId == startItem.photo.mediaId }
                                         }
                                         onSelectionReplace(newSel)
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -189,9 +189,9 @@ fun SearchScreen(
                                                             val currentSel = initialSelection.toMutableList()
                                                             for (photo in photosInRange) {
                                                                 if (isSelecting) {
-                                                                    if (!currentSel.contains(photo)) currentSel.add(photo)
+                                                                    if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
                                                                 } else {
-                                                                    currentSel.remove(photo)
+                                                                    currentSel.removeAll { it.mediaId == photo.mediaId }
                                                                 }
                                                             }
                                                             onSelectionReplace(currentSel)
@@ -233,9 +233,9 @@ fun SearchScreen(
                                             val currentSel = initialSelection.toMutableList()
                                             for (photo in photosInRange) {
                                                 if (isSelecting) {
-                                                    if (!currentSel.contains(photo)) currentSel.add(photo)
+                                                    if (!currentSel.any { it.mediaId == photo.mediaId }) currentSel.add(photo)
                                                 } else {
-                                                    currentSel.remove(photo)
+                                                    currentSel.removeAll { it.mediaId == photo.mediaId }
                                                 }
                                             }
                                             onSelectionReplace(currentSel)
@@ -275,7 +275,7 @@ fun SearchScreen(
                                 is GalleryItem.PhotoItem -> {
                                     PhotoTile(
                                         item = item.photo,
-                                        isSelected = selectedItems.contains(item.photo),
+                                        isSelected = selectedItems.any { it.mediaId == item.photo.mediaId },
                                         isSelectionMode = isSelectionMode,
                                         onItemClick = onItemClick,
                                         onItemLongClick = onItemLongClick,
