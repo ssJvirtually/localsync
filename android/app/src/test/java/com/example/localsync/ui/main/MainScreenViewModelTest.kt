@@ -34,4 +34,5 @@ private class FakeLocalSyncRepository : LocalSyncRepository {
     override suspend fun scanLocalMedia() {}
     override suspend fun unpair() {}
     override suspend fun deleteMediaItem(item: MediaItem) {}
+    override suspend fun deleteMediaItems(items: List<MediaItem>) {}
 }

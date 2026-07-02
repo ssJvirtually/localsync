@@ -146,4 +146,8 @@ class DataRepository(private val context: Context) : LocalSyncRepository {
     override suspend fun deleteMediaItem(item: MediaItem) = withContext(Dispatchers.IO) {
         mediaItemDao.deleteItem(item)
     }
+
+    override suspend fun deleteMediaItems(items: List<MediaItem>) = withContext(Dispatchers.IO) {
+        mediaItemDao.deleteItems(items)
+    }
 }

@@ -12,4 +12,5 @@ interface LocalSyncRepository {
     suspend fun scanLocalMedia()
     suspend fun unpair()
     suspend fun deleteMediaItem(item: MediaItem)
+    suspend fun deleteMediaItems(items: List<MediaItem>)
 }

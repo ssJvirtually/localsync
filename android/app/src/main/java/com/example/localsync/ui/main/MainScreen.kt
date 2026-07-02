@@ -175,10 +175,10 @@ fun MainScreen(
                                 } catch (e: Exception) {
                                     Log.e("MainScreen", "Failed to delete from MediaStore: ${item.mediaId}", e)
                                 }
-
-                                // 3. Delete from Local Database
-                                viewModel.deleteMediaItem(item)
                             }
+                            
+                            // 3. Delete all from Local Database in a single transaction
+                            viewModel.deleteMediaItems(itemsToDelete)
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -307,6 +307,11 @@ fun MainScreen(
                                     isSelectionMode = true
                                     selectedItems.add(item)
                                 }
+                            },
+                            onSelectionReplace = { newSelection ->
+                                selectedItems.clear()
+                                selectedItems.addAll(newSelection)
+                                isSelectionMode = selectedItems.isNotEmpty()
                             }
                         )
                     }
@@ -337,6 +342,11 @@ fun MainScreen(
                                     isSelectionMode = true
                                     selectedItems.add(item)
                                 }
+                            },
+                            onSelectionReplace = { newSelection ->
+                                selectedItems.clear()
+                                selectedItems.addAll(newSelection)
+                                isSelectionMode = selectedItems.isNotEmpty()
                             }
                         )
                     }

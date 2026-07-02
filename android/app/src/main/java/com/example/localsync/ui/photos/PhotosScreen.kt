@@ -11,8 +11,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
@@ -24,7 +26,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -60,7 +61,6 @@ sealed class GalleryItem {
 private val gridHeaderFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy", java.util.Locale.getDefault())
 private val gridMonthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.getDefault())
 
-// Custom Google Photos-style scroll handle double-arrow icon vector
 val ScrollHandleIcon = ImageVector.Builder(
     name = "ScrollHandle",
     defaultWidth = 24.dp,
@@ -89,6 +89,7 @@ fun PhotosScreen(
     isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
     onItemLongClick: (MediaItem) -> Unit,
+    onSelectionReplace: (List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Group photos by clean date header
@@ -130,42 +131,161 @@ fun PhotosScreen(
             val coroutineScope = rememberCoroutineScope()
             val haptic = LocalHapticFeedback.current
 
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxSize(),
-                // Spacing matches Google Photos (2dp spacing, no outer padding to span edge-to-edge)
-                contentPadding = PaddingValues(2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(
-                    count = groupedPhotosList.size,
-                    span = { index ->
-                        val item = groupedPhotosList[index]
-                        val spanCount = if (item is GalleryItem.Header) 4 else 1
-                        GridItemSpan(spanCount)
+            // Drag selection state variables
+            var isDraggingToSelect by remember { mutableStateOf(false) }
+            var dragStartPhotoIndex by remember { mutableStateOf<Int?>(null) }
+            var dragCurrentPhotoIndex by remember { mutableStateOf<Int?>(null) }
+            var dragCurrentPosition by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+            var initialSelection by remember { mutableStateOf(emptyList<MediaItem>()) }
+            var isSelecting by remember { mutableStateOf(true) }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(groupedPhotosList) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { startOffset ->
+                                val startIndex = gridState.getItemIndexAt(startOffset)
+                                val startItem = startIndex?.let { groupedPhotosList.getOrNull(it) }
+                                if (startItem is GalleryItem.PhotoItem) {
+                                    dragStartPhotoIndex = startIndex
+                                    dragCurrentPhotoIndex = startIndex
+                                    dragCurrentPosition = startOffset
+                                    isDraggingToSelect = true
+                                    initialSelection = selectedItems.toList()
+                                    isSelecting = !initialSelection.contains(startItem.photo)
+                                    
+                                    val newSel = initialSelection.toMutableList()
+                                    if (isSelecting) {
+                                        if (!newSel.contains(startItem.photo)) newSel.add(startItem.photo)
+                                    } else {
+                                        newSel.remove(startItem.photo)
+                                    }
+                                    onSelectionReplace(newSel)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    
+                                    // Start Auto-Scroll loop during drag
+                                    coroutineScope.launch {
+                                        while (isDraggingToSelect) {
+                                            val currentY = dragCurrentPosition.y
+                                            val containerHeight = containerHeightPx
+                                            var scrollDelta = 0f
+                                            
+                                            if (currentY < 150f) {
+                                                scrollDelta = -30f
+                                            } else if (currentY > containerHeight - 150f) {
+                                                scrollDelta = 30f
+                                            }
+                                            
+                                            if (scrollDelta != 0f) {
+                                                try {
+                                                    gridState.scrollBy(scrollDelta)
+                                                    val currentIndex = gridState.getItemIndexAt(dragCurrentPosition)
+                                                    if (currentIndex != null && currentIndex != dragCurrentPhotoIndex) {
+                                                        dragCurrentPhotoIndex = currentIndex
+                                                        val start = minOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                                        val end = maxOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                                        
+                                                        val photosInRange = (start..end).mapNotNull { idx ->
+                                                            (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
+                                                        }
+                                                        
+                                                        val currentSel = initialSelection.toMutableList()
+                                                        for (photo in photosInRange) {
+                                                            if (isSelecting) {
+                                                                if (!currentSel.contains(photo)) currentSel.add(photo)
+                                                            } else {
+                                                                currentSel.remove(photo)
+                                                            }
+                                                        }
+                                                        onSelectionReplace(currentSel)
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    // Ignore scroll bounds exception
+                                                }
+                                            }
+                                            kotlinx.coroutines.delay(30)
+                                        }
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                isDraggingToSelect = false
+                                dragStartPhotoIndex = null
+                                dragCurrentPhotoIndex = null
+                            },
+                            onDragCancel = {
+                                isDraggingToSelect = false
+                                dragStartPhotoIndex = null
+                                dragCurrentPhotoIndex = null
+                            },
+                            onDrag = { change, dragAmount ->
+                                if (isDraggingToSelect && dragStartPhotoIndex != null) {
+                                    change.consume()
+                                    dragCurrentPosition += dragAmount
+                                    val currentIndex = gridState.getItemIndexAt(dragCurrentPosition)
+                                    if (currentIndex != null && currentIndex != dragCurrentPhotoIndex) {
+                                        dragCurrentPhotoIndex = currentIndex
+                                        val start = minOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                        val end = maxOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                        
+                                        val photosInRange = (start..end).mapNotNull { idx ->
+                                            (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
+                                        }
+                                        
+                                        val currentSel = initialSelection.toMutableList()
+                                        for (photo in photosInRange) {
+                                            if (isSelecting) {
+                                                if (!currentSel.contains(photo)) currentSel.add(photo)
+                                            } else {
+                                                currentSel.remove(photo)
+                                            }
+                                        }
+                                        onSelectionReplace(currentSel)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                }
+                            }
+                        )
                     }
-                ) { index ->
-                    val item = groupedPhotosList[index]
-                    when (item) {
-                        is GalleryItem.Header -> {
-                            Text(
-                                text = item.date,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
-                            )
+            ) {
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    items(
+                        count = groupedPhotosList.size,
+                        span = { index ->
+                            val item = groupedPhotosList[index]
+                            val spanCount = if (item is GalleryItem.Header) 4 else 1
+                            GridItemSpan(spanCount)
                         }
-                        is GalleryItem.PhotoItem -> {
-                            PhotoTile(
-                                item = item.photo,
-                                isSelected = selectedItems.contains(item.photo),
-                                isSelectionMode = isSelectionMode,
-                                onItemClick = onItemClick,
-                                onItemLongClick = onItemLongClick,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    ) { index ->
+                        val item = groupedPhotosList[index]
+                        when (item) {
+                            is GalleryItem.Header -> {
+                                Text(
+                                    text = item.date,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
+                                )
+                            }
+                            is GalleryItem.PhotoItem -> {
+                                PhotoTile(
+                                    item = item.photo,
+                                    isSelected = selectedItems.contains(item.photo),
+                                    isSelectionMode = isSelectionMode,
+                                    onItemClick = onItemClick,
+                                    onItemLongClick = onItemLongClick,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
@@ -475,7 +595,6 @@ fun PhotoTile(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            // No rounded corners, matches Google Photos (completely flat square grid)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .pointerInput(item, isSelectionMode) {
                 detectTapGestures(
@@ -489,7 +608,6 @@ fun PhotoTile(
                 item = item,
                 modifier = Modifier.fillMaxSize()
             )
-            // Small overlay play icon for video items at bottom-left corner with shadow
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = "Play Video",
@@ -542,7 +660,6 @@ fun PhotoTile(
         // Selection overlay (Google Photos-style blue selection checkbox & tint)
         if (isSelectionMode) {
             if (isSelected) {
-                // Semi-transparent blue selection tint
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -559,7 +676,6 @@ fun PhotoTile(
                         .size(22.dp)
                 )
             } else {
-                // Unselected outline indicator
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -571,4 +687,16 @@ fun PhotoTile(
             }
         }
     }
+}
+
+// Extension helper to determine item index from screen touch offsets
+private fun LazyGridState.getItemIndexAt(offset: androidx.compose.ui.geometry.Offset): Int? {
+    val itemsInfo = layoutInfo.visibleItemsInfo
+    val matched = itemsInfo.find { item ->
+        val x = offset.x.toInt()
+        val y = offset.y.toInt()
+        x >= item.offset.x && x <= item.offset.x + item.size.width &&
+        y >= item.offset.y && y <= item.offset.y + item.size.height
+    }
+    return matched?.index
 }

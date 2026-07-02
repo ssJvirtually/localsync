@@ -34,4 +34,7 @@ interface MediaItemDao {
 
     @Delete
     suspend fun deleteItem(item: MediaItem)
+
+    @Delete
+    suspend fun deleteItems(items: List<MediaItem>)
 }

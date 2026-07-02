@@ -4,7 +4,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +43,7 @@ fun SearchScreen(
     isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
     onItemLongClick: (MediaItem) -> Unit,
+    onSelectionReplace: (List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -124,42 +127,161 @@ fun SearchScreen(
                 val coroutineScope = rememberCoroutineScope()
                 val haptic = LocalHapticFeedback.current
 
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.fillMaxSize(),
-                    // Google Photos thin grid spacing: 2dp spacing, no outer padding
-                    contentPadding = PaddingValues(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    items(
-                        count = groupedPhotosList.size,
-                        span = { index ->
-                            val item = groupedPhotosList[index]
-                            val spanCount = if (item is GalleryItem.Header) 4 else 1
-                            GridItemSpan(spanCount)
+                // Drag selection state variables
+                var isDraggingToSelect by remember { mutableStateOf(false) }
+                var dragStartPhotoIndex by remember { mutableStateOf<Int?>(null) }
+                var dragCurrentPhotoIndex by remember { mutableStateOf<Int?>(null) }
+                var dragCurrentPosition by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+                var initialSelection by remember { mutableStateOf(emptyList<MediaItem>()) }
+                var isSelecting by remember { mutableStateOf(true) }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(groupedPhotosList) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { startOffset ->
+                                    val startIndex = gridState.getItemIndexAt(startOffset)
+                                    val startItem = startIndex?.let { groupedPhotosList.getOrNull(it) }
+                                    if (startItem is GalleryItem.PhotoItem) {
+                                        dragStartPhotoIndex = startIndex
+                                        dragCurrentPhotoIndex = startIndex
+                                        dragCurrentPosition = startOffset
+                                        isDraggingToSelect = true
+                                        initialSelection = selectedItems.toList()
+                                        isSelecting = !initialSelection.contains(startItem.photo)
+                                        
+                                        val newSel = initialSelection.toMutableList()
+                                        if (isSelecting) {
+                                            if (!newSel.contains(startItem.photo)) newSel.add(startItem.photo)
+                                        } else {
+                                            newSel.remove(startItem.photo)
+                                        }
+                                        onSelectionReplace(newSel)
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        
+                                        // Start Auto-Scroll loop during drag
+                                        coroutineScope.launch {
+                                            while (isDraggingToSelect) {
+                                                val currentY = dragCurrentPosition.y
+                                                val containerHeight = containerHeightPx
+                                                var scrollDelta = 0f
+                                                
+                                                if (currentY < 150f) {
+                                                    scrollDelta = -30f
+                                                } else if (currentY > containerHeight - 150f) {
+                                                    scrollDelta = 30f
+                                                }
+                                                
+                                                if (scrollDelta != 0f) {
+                                                    try {
+                                                        gridState.scrollBy(scrollDelta)
+                                                        val currentIndex = gridState.getItemIndexAt(dragCurrentPosition)
+                                                        if (currentIndex != null && currentIndex != dragCurrentPhotoIndex) {
+                                                            dragCurrentPhotoIndex = currentIndex
+                                                            val start = minOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                                            val end = maxOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                                            
+                                                            val photosInRange = (start..end).mapNotNull { idx ->
+                                                                (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
+                                                            }
+                                                            
+                                                            val currentSel = initialSelection.toMutableList()
+                                                            for (photo in photosInRange) {
+                                                                if (isSelecting) {
+                                                                    if (!currentSel.contains(photo)) currentSel.add(photo)
+                                                                } else {
+                                                                    currentSel.remove(photo)
+                                                                }
+                                                            }
+                                                            onSelectionReplace(currentSel)
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        // Ignore scroll bounds exception
+                                                    }
+                                                }
+                                                kotlinx.coroutines.delay(30)
+                                            }
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDraggingToSelect = false
+                                    dragStartPhotoIndex = null
+                                    dragCurrentPhotoIndex = null
+                                },
+                                onDragCancel = {
+                                    isDraggingToSelect = false
+                                    dragStartPhotoIndex = null
+                                    dragCurrentPhotoIndex = null
+                                },
+                                onDrag = { change, dragAmount ->
+                                    if (isDraggingToSelect && dragStartPhotoIndex != null) {
+                                        change.consume()
+                                        dragCurrentPosition += dragAmount
+                                        val currentIndex = gridState.getItemIndexAt(dragCurrentPosition)
+                                        if (currentIndex != null && currentIndex != dragCurrentPhotoIndex) {
+                                            dragCurrentPhotoIndex = currentIndex
+                                            val start = minOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                            val end = maxOf(dragStartPhotoIndex!!, dragCurrentPhotoIndex!!)
+                                            
+                                            val photosInRange = (start..end).mapNotNull { idx ->
+                                                (groupedPhotosList.getOrNull(idx) as? GalleryItem.PhotoItem)?.photo
+                                            }
+                                            
+                                            val currentSel = initialSelection.toMutableList()
+                                            for (photo in photosInRange) {
+                                                if (isSelecting) {
+                                                    if (!currentSel.contains(photo)) currentSel.add(photo)
+                                                } else {
+                                                    currentSel.remove(photo)
+                                                }
+                                            }
+                                            onSelectionReplace(currentSel)
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                    }
+                                }
+                            )
                         }
-                    ) { index ->
-                        val item = groupedPhotosList[index]
-                        when (item) {
-                            is GalleryItem.Header -> {
-                                Text(
-                                    text = item.date,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
-                                )
+                ) {
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(4),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        items(
+                            count = groupedPhotosList.size,
+                            span = { index ->
+                                val item = groupedPhotosList[index]
+                                val spanCount = if (item is GalleryItem.Header) 4 else 1
+                                GridItemSpan(spanCount)
                             }
-                            is GalleryItem.PhotoItem -> {
-                                PhotoTile(
-                                    item = item.photo,
-                                    isSelected = selectedItems.contains(item.photo),
-                                    isSelectionMode = isSelectionMode,
-                                    onItemClick = onItemClick,
-                                    onItemLongClick = onItemLongClick,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                        ) { index ->
+                            val item = groupedPhotosList[index]
+                            when (item) {
+                                is GalleryItem.Header -> {
+                                    Text(
+                                        text = item.date,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
+                                    )
+                                }
+                                is GalleryItem.PhotoItem -> {
+                                    PhotoTile(
+                                        item = item.photo,
+                                        isSelected = selectedItems.contains(item.photo),
+                                        isSelectionMode = isSelectionMode,
+                                        onItemClick = onItemClick,
+                                        onItemLongClick = onItemLongClick,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
                         }
                     }
@@ -403,4 +525,16 @@ fun SearchScreen(
             }
         }
     }
+}
+
+// Extension helper to determine item index from screen touch offsets
+private fun LazyGridState.getItemIndexAt(offset: androidx.compose.ui.geometry.Offset): Int? {
+    val itemsInfo = layoutInfo.visibleItemsInfo
+    val matched = itemsInfo.find { item ->
+        val x = offset.x.toInt()
+        val y = offset.y.toInt()
+        x >= item.offset.x && x <= item.offset.x + item.size.width &&
+        y >= item.offset.y && y <= item.offset.y + item.size.height
+    }
+    return matched?.index
 }
