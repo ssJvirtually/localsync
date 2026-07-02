@@ -185,6 +185,7 @@ object UploadPipeline {
             .addFormDataPart("file", item.fileName, progressBody)
             .addFormDataPart("hash", hash)
             .addFormDataPart("deviceId", server.deviceId)
+            .addFormDataPart("mediaId", item.mediaId.toString())
             .addFormDataPart("fileName", item.fileName)
             .addFormDataPart("fileSize", file.length().toString())
             .addFormDataPart("dateTaken", item.dateTaken.toString())
