@@ -11,7 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -49,7 +49,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -86,9 +85,13 @@ val ScrollHandleIcon = ImageVector.Builder(
 @Composable
 fun PhotosScreen(
     items: List<MediaItem>,
+    selectedItems: List<MediaItem>,
+    isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
+    onItemLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Group photos by clean date header
     val groupedPhotosList = remember(items) {
         val list = mutableListOf<GalleryItem>()
         var lastDateHeader = ""
@@ -131,9 +134,10 @@ fun PhotosScreen(
                 state = gridState,
                 columns = GridCells.Fixed(4),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Spacing matches Google Photos (2dp spacing, no outer padding to span edge-to-edge)
+                contentPadding = PaddingValues(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(
                     count = groupedPhotosList.size,
@@ -148,15 +152,18 @@ fun PhotosScreen(
                         is GalleryItem.Header -> {
                             Text(
                                 text = item.date,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
                             )
                         }
                         is GalleryItem.PhotoItem -> {
                             PhotoTile(
                                 item = item.photo,
+                                isSelected = selectedItems.contains(item.photo),
+                                isSelectionMode = isSelectionMode,
                                 onItemClick = onItemClick,
+                                onItemLongClick = onItemLongClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -268,7 +275,7 @@ fun PhotosScreen(
                     val thumbYPx = paddingPx + (activeFraction * scrollableRangePx)
                     val thumbY = with(density) { thumbYPx.toDp() }
 
-                    // Drag overlay
+                    // Drag area
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
@@ -459,20 +466,40 @@ fun VideoThumbnail(item: MediaItem, modifier: Modifier = Modifier) {
 @Composable
 fun PhotoTile(
     item: MediaItem,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
+    onItemLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
+            // No rounded corners, matches Google Photos (completely flat square grid)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { onItemClick(item) }
+            .pointerInput(item, isSelectionMode) {
+                detectTapGestures(
+                    onTap = { onItemClick(item) },
+                    onLongPress = { onItemLongClick(item) }
+                )
+            }
     ) {
         if (item.mediaType == MediaType.VIDEO) {
             VideoThumbnail(
                 item = item,
                 modifier = Modifier.fillMaxSize()
+            )
+            // Small overlay play icon for video items at bottom-left corner with shadow
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Play Video",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .padding(4.dp)
+                    .size(14.dp)
             )
         } else {
             Image(
@@ -483,7 +510,7 @@ fun PhotoTile(
             )
         }
 
-        // Status Overlay
+        // Status Overlay (Synced checkmark / uploading circle)
         when (item.backupStatus) {
             BackupStatus.DONE -> {
                 Icon(
@@ -494,7 +521,7 @@ fun PhotoTile(
                         .align(Alignment.BottomEnd)
                         .padding(4.dp)
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        .size(20.dp)
+                        .size(16.dp)
                 )
             }
             BackupStatus.UPLOADING -> {
@@ -504,11 +531,43 @@ fun PhotoTile(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(4.dp)
-                        .size(16.dp)
+                        .size(14.dp)
                 )
             }
             else -> {
                 // PENDING / FAILED show nothing
+            }
+        }
+
+        // Selection overlay (Google Photos-style blue selection checkbox & tint)
+        if (isSelectionMode) {
+            if (isSelected) {
+                // Semi-transparent blue selection tint
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                )
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .background(Color.White, CircleShape)
+                        .size(22.dp)
+                )
+            } else {
+                // Unselected outline indicator
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .size(22.dp)
+                        .background(Color.Black.copy(alpha = 0.2f), CircleShape)
+                        .border(1.5.dp, Color.White, CircleShape)
+                )
             }
         }
     }

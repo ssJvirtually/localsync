@@ -37,7 +37,10 @@ private val gridMonthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", ja
 @Composable
 fun SearchScreen(
     items: List<MediaItem>,
+    selectedItems: List<MediaItem>,
+    isSelectionMode: Boolean,
     onItemClick: (MediaItem) -> Unit,
+    onItemLongClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -74,7 +77,7 @@ fun SearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(top = 16.dp, start = 16.dp, end = 16.dp)
     ) {
         OutlinedTextField(
             value = searchQuery,
@@ -125,8 +128,10 @@ fun SearchScreen(
                     state = gridState,
                     columns = GridCells.Fixed(4),
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Google Photos thin grid spacing: 2dp spacing, no outer padding
+                    contentPadding = PaddingValues(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(
                         count = groupedPhotosList.size,
@@ -141,15 +146,18 @@ fun SearchScreen(
                             is GalleryItem.Header -> {
                                 Text(
                                     text = item.date,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                                    modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
                                 )
                             }
                             is GalleryItem.PhotoItem -> {
                                 PhotoTile(
                                     item = item.photo,
+                                    isSelected = selectedItems.contains(item.photo),
+                                    isSelectionMode = isSelectionMode,
                                     onItemClick = onItemClick,
+                                    onItemLongClick = onItemLongClick,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

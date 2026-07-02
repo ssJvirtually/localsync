@@ -31,4 +31,7 @@ interface MediaItemDao {
 
     @Query("DELETE FROM media_items")
     suspend fun clearAllMedia()
+
+    @Delete
+    suspend fun deleteItem(item: MediaItem)
 }

@@ -46,4 +46,10 @@ class MainScreenViewModel(private val repository: LocalSyncRepository) : ViewMod
             repository.unpair()
         }
     }
+
+    fun deleteMediaItem(item: MediaItem) {
+        viewModelScope.launch {
+            repository.deleteMediaItem(item)
+        }
+    }
 }

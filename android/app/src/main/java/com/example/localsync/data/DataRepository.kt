@@ -142,4 +142,8 @@ class DataRepository(private val context: Context) : LocalSyncRepository {
             .putBoolean("sync_paused", paused)
             .apply()
     }
+
+    override suspend fun deleteMediaItem(item: MediaItem) = withContext(Dispatchers.IO) {
+        mediaItemDao.deleteItem(item)
+    }
 }
