@@ -55,6 +55,8 @@ public class MainFxApp extends Application {
     private Button btnLogs;
     private Button btnSettings;
 
+    private BorderPane mainLayout;
+
     @Override
     public void start(Stage primaryStage) {
         // Initialize Core Components
@@ -69,7 +71,11 @@ public class MainFxApp extends Application {
         primaryStage.setMinWidth(900);
         primaryStage.setMinHeight(600);
 
-        BorderPane mainLayout = new BorderPane();
+        mainLayout = new BorderPane();
+        String savedTheme = dbManager.getConfig("app_theme", "dark");
+        if (savedTheme.equals("light")) {
+            mainLayout.getStyleClass().add("light-theme");
+        }
 
         // 1. Sidebar Panel
         VBox sidebar = new VBox();
@@ -504,6 +510,7 @@ public class MainFxApp extends Application {
         Text title = new Text("Settings");
         title.getStyleClass().add("title-text");
 
+        // Backup directory layout
         Label lblBackupDir = new Label("Backup Directory:");
         lblBackupDir.getStyleClass().add("body-text");
 
@@ -530,9 +537,23 @@ public class MainFxApp extends Application {
         HBox pathBox = new HBox(10);
         pathBox.getChildren().addAll(txtBackupDir, btnBrowse);
 
+        // Theme layout
+        Label lblTheme = new Label("Application Theme:");
+        lblTheme.getStyleClass().add("body-text");
+
+        ComboBox<String> cbTheme = new ComboBox<>();
+        cbTheme.getItems().addAll("Dark Theme", "Light Theme");
+        String currentTheme = dbManager.getConfig("app_theme", "dark");
+        cbTheme.setValue(currentTheme.equals("light") ? "Light Theme" : "Dark Theme");
+        cbTheme.getStyleClass().add("combo-box");
+        cbTheme.setPrefWidth(200);
+
         Button btnSave = new Button("Save Settings");
         btnSave.getStyleClass().add("primary-btn");
         btnSave.setOnAction(e -> {
+            boolean settingsUpdated = false;
+
+            // Save backup directory
             String newPath = txtBackupDir.getText();
             if (newPath != null && !newPath.trim().isEmpty()) {
                 File newDir = new File(newPath);
@@ -545,16 +566,35 @@ public class MainFxApp extends Application {
                     httpServer.setBackupDir(newPath);
                 }
                 log("Backup directory updated to: " + newPath);
-                
+                settingsUpdated = true;
+            }
+
+            // Save theme
+            String selectedThemeName = cbTheme.getValue();
+            String newTheme = selectedThemeName.equals("Light Theme") ? "light" : "dark";
+            dbManager.setConfig("app_theme", newTheme);
+            log("Theme updated to: " + newTheme);
+            
+            // Apply theme immediately
+            if (newTheme.equals("light")) {
+                if (!mainLayout.getStyleClass().contains("light-theme")) {
+                    mainLayout.getStyleClass().add("light-theme");
+                }
+            } else {
+                mainLayout.getStyleClass().remove("light-theme");
+            }
+            settingsUpdated = true;
+
+            if (settingsUpdated) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle("Settings Saved");
                 alert.setHeaderText(null);
-                alert.setContentText("The backup directory was successfully updated!");
+                alert.setContentText("Your configuration settings have been successfully updated!");
                 alert.showAndWait();
             }
         });
 
-        vbox.getChildren().addAll(title, lblBackupDir, pathBox, btnSave);
+        vbox.getChildren().addAll(title, lblBackupDir, pathBox, lblTheme, cbTheme, btnSave);
         return vbox;
     }
 
