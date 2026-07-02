@@ -131,6 +131,7 @@ public class HttpServer {
         String hash = ctx.formParam("hash");
         String dateTakenStr = ctx.formParam("dateTaken");
         String fileName = ctx.formParam("fileName");
+        String subFolder = ctx.formParam("subFolder");
         String deviceId = ctx.formParam("deviceId");
 
         if (file == null || mediaIdStr == null || hash == null || dateTakenStr == null || fileName == null || deviceId == null) {
@@ -152,19 +153,34 @@ public class HttpServer {
             return;
         }
 
-        File deviceDir = new File(backupDir, deviceId);
-        if (!deviceDir.exists()) {
-            deviceDir.mkdirs();
+        // Get device name to create a user-friendly folder
+        String deviceName = dbManager.getDevices().stream()
+                .filter(d -> d.deviceId.equals(deviceId))
+                .map(d -> d.deviceName)
+                .findFirst()
+                .orElse(deviceId);
+        String sanitizedDeviceName = deviceName.replaceAll("[\\\\/:*?\"<>|]", "_");
+
+        File deviceDir = new File(backupDir, sanitizedDeviceName);
+        File targetDir = deviceDir;
+        if (subFolder != null && !subFolder.trim().isEmpty()) {
+            // Sanitize subFolder to prevent path traversal
+            String safeSubFolder = subFolder.trim().replaceAll("\\.\\./", "").replaceAll("\\.\\.\\\\", "");
+            targetDir = new File(deviceDir, safeSubFolder);
+        }
+
+        if (!targetDir.exists()) {
+            targetDir.mkdirs();
         }
 
         // Deal with filename collision
-        File targetFile = new File(deviceDir, fileName);
+        File targetFile = new File(targetDir, fileName);
         if (targetFile.exists()) {
             // Append short hash to filename to prevent overwrite
             String name = getBaseName(fileName);
             String ext = getExtension(fileName);
             String shortHash = hash.length() > 8 ? hash.substring(0, 8) : hash;
-            targetFile = new File(deviceDir, name + "_" + shortHash + "." + ext);
+            targetFile = new File(targetDir, name + "_" + shortHash + "." + ext);
         }
 
         // Stream file contents into local destination
@@ -183,11 +199,6 @@ public class HttpServer {
 
             // Notify listener (for UI updates)
             if (uploadListener != null) {
-                String deviceName = dbManager.getDevices().stream()
-                        .filter(d -> d.deviceId.equals(deviceId))
-                        .map(d -> d.deviceName)
-                        .findFirst()
-                        .orElse("Unknown Device");
                 uploadListener.onUploadReceived(deviceId, deviceName, targetFile.getName(), file.size());
             }
 

@@ -190,6 +190,7 @@ object UploadPipeline {
             .addFormDataPart("fileSize", file.length().toString())
             .addFormDataPart("dateTaken", item.dateTaken.toString())
             .addFormDataPart("mediaType", item.mediaType.name)
+            .addFormDataPart("subFolder", getRelativeFolderPath(item.filePath))
             .build()
 
         val request = Request.Builder()
@@ -211,5 +212,39 @@ object UploadPipeline {
             Log.e(TAG, "Upload failed for ${item.fileName}: ${e.message}", e)
             return Result.failure(e)
         }
+    }
+
+    private fun getRelativeFolderPath(filePath: String): String {
+        val emulatedPrefix = "/storage/emulated/0/"
+        if (filePath.startsWith(emulatedPrefix)) {
+            val relative = filePath.substring(emulatedPrefix.length)
+            val lastSlash = relative.lastIndexOf('/')
+            if (lastSlash != -1) {
+                return relative.substring(0, lastSlash)
+            }
+        } else {
+            val storagePrefix = "/storage/"
+            if (filePath.startsWith(storagePrefix)) {
+                val relative = filePath.substring(storagePrefix.length)
+                val firstSlash = relative.indexOf('/')
+                if (firstSlash != -1) {
+                    val subRelative = relative.substring(firstSlash + 1)
+                    val lastSlash = subRelative.lastIndexOf('/')
+                    if (lastSlash != -1) {
+                        return subRelative.substring(0, lastSlash)
+                    }
+                }
+            }
+        }
+        try {
+            val file = java.io.File(filePath)
+            val parent = file.parentFile
+            if (parent != null) {
+                return parent.name
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+        return ""
     }
 }
