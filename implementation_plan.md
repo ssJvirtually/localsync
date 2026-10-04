@@ -244,4 +244,20 @@ Both pools pull from the same Room-backed queue (`WHERE backupStatus = PENDING O
 
 ---
 
+## 11. iOS Client Architecture & Implementation
+
+The iOS app (`ios/`) is a native Swift & SwiftUI application that fully replicates the Android client's behavior:
+
+- **UI**: Pure SwiftUI, featuring:
+  - **Photos Tab**: Date-grouped photo/video grid, live upload progress indicators, done checkmarks, video badges, multi-selection, and a fullscreen media viewer (pinch-to-zoom photo preview and AVPlayer video playback).
+  - **Search Tab**: Real-time filename search with results grid and media viewer integration.
+  - **Settings Tab**: Backup progress card, paired PC details, Pause/Resume toggle, Sync on Mobile via Tailscale toggle, and an Unpair action.
+  - **Pairing View**: `AVFoundation` live camera QR code scanner with a "Pair Manually" fallback sheet.
+- **Photo Engine**: `PhotoKit` (`PHPhotoLibrary`, `PHAsset`, `PHAssetResource`), including `PHPhotoLibraryChangeObserver` to automatically detect newly captured photos and videos in real time.
+- **Discovery**: Apple's `Network` framework & Bonjour (`_photobackup._tcp`), plus multi-IP ping fallback (`GET /health`) covering LAN and Tailscale IPs.
+- **Upload Engine**: Cryptographic SHA-256 via `CryptoKit`, pre-check `/exists`, and multipart/form-data upload with progress reporting and adaptive concurrency (4 photos / 2 videos on battery, 6 photos / 3 videos when plugged in and charging).
+- **Data Persistence**: Native SQLite with WAL mode (`PRAGMA journal_mode=WAL;`), matching the Android Room and Desktop SQLite databases.
+
+---
+
 This plan is intended as a living reference — update it as decisions evolve during the build.
