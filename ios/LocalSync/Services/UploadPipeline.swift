@@ -122,7 +122,19 @@ public final class UploadPipeline: NSObject {
 
         appendField(name: "hash", value: hash)
         appendField(name: "deviceId", value: deviceId)
-        appendField(name: "mediaId", value: mediaId)
+
+        // Desktop expects Long for mediaId; provide numeric hash if localIdentifier is string UUID
+        let numericMediaId: String
+        if let _ = Int64(mediaId) {
+            numericMediaId = mediaId
+        } else {
+            var h: Int64 = 5381
+            for byte in mediaId.utf8 {
+                h = ((h << 5) &+ h) &+ Int64(byte)
+            }
+            numericMediaId = String(abs(h))
+        }
+        appendField(name: "mediaId", value: numericMediaId)
         appendField(name: "fileName", value: fileName)
         appendField(name: "fileSize", value: "\(fileData.count)")
         appendField(name: "dateTaken", value: "\(dateTaken)")

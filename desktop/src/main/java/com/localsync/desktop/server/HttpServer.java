@@ -144,8 +144,10 @@ public class HttpServer {
             return;
         }
 
-        long mediaId = Long.parseLong(mediaIdStr);
-        long dateTaken = Long.parseLong(dateTakenStr);
+        long dateTaken = System.currentTimeMillis();
+        try {
+            dateTaken = Long.parseLong(dateTakenStr);
+        } catch (NumberFormatException ignored) {}
 
         // Check if the file already exists in SQLite
         if (dbManager.isFileExists(deviceId, hash)) {
@@ -195,7 +197,7 @@ public class HttpServer {
             out.flush();
 
             // Save to DB
-            dbManager.addReceivedFile(deviceId, mediaId, hash, targetFile.getName(), targetFile.getAbsolutePath(), file.size(), dateTaken);
+            dbManager.addReceivedFile(deviceId, mediaIdStr, hash, targetFile.getName(), targetFile.getAbsolutePath(), file.size(), dateTaken);
 
             // Notify listener (for UI updates)
             if (uploadListener != null) {

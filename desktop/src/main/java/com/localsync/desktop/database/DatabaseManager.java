@@ -146,14 +146,14 @@ public class DatabaseManager {
         }
     }
 
-    public synchronized void addReceivedFile(String deviceId, long mediaId, String hash, String fileName, 
+    public synchronized void addReceivedFile(String deviceId, String mediaId, String hash, String fileName, 
                                              String storedPath, long sizeBytes, long dateTaken) throws SQLException {
         String sql = "INSERT OR IGNORE INTO received_files (device_id, media_id, file_hash, file_name, stored_path, size_bytes, date_taken, received_at) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, deviceId);
-            pstmt.setLong(2, mediaId);
+            pstmt.setString(2, mediaId != null ? mediaId : "0");
             pstmt.setString(3, hash);
             pstmt.setString(4, fileName);
             pstmt.setString(5, storedPath);
@@ -162,6 +162,11 @@ public class DatabaseManager {
             pstmt.setLong(8, System.currentTimeMillis());
             pstmt.executeUpdate();
         }
+    }
+
+    public synchronized void addReceivedFile(String deviceId, long mediaId, String hash, String fileName, 
+                                             String storedPath, long sizeBytes, long dateTaken) throws SQLException {
+        addReceivedFile(deviceId, String.valueOf(mediaId), hash, fileName, storedPath, sizeBytes, dateTaken);
     }
 
     public synchronized boolean isFileExists(String deviceId, String hash) {
