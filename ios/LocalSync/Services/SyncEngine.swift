@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import Combine
 
-public final class SyncEngine: ObservableObject {
+public final class SyncEngine: ObservableObject, @unchecked Sendable {
     public static let shared = SyncEngine()
 
     @Published public private(set) var isSyncing: Bool = false
@@ -108,7 +108,9 @@ public final class SyncEngine: ObservableObject {
         }
 
         // Concurrency settings
-        let isCharging = UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
+        let isCharging = await MainActor.run {
+            UIDevice.current.batteryState == .charging || UIDevice.current.batteryState == .full
+        }
         let photoLimit = isCharging ? 6 : 4
         let videoLimit = isCharging ? 3 : 2
 

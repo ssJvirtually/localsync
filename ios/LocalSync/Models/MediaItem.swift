@@ -12,7 +12,7 @@ public enum BackupStatus: String, Codable {
     case failed = "FAILED"
 }
 
-public struct MediaItem: Identifiable, Hashable, Codable {
+public struct MediaItem: Identifiable, Hashable, Codable, Sendable {
     public var id: String { mediaId }
     public let mediaId: String          // PHAsset localIdentifier
     public let filePath: String         // Local asset filename or path

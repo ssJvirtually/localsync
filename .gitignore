@@ -67,3 +67,5 @@ Captures/
 *.xcuserdata/
 *.xcuserstate
 DerivedData/
+xcuserdata/
+*.xcodeproj/xcuserdata/

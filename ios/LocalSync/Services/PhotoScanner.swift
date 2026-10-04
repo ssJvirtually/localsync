@@ -45,7 +45,7 @@ public final class PhotoScanner: NSObject, ObservableObject, PHPhotoLibraryChang
     // MARK: - Scanning
 
     public func scan(pairedServerId: Int64) async -> [MediaItem] {
-        guard hasAuthorization() else {
+        if !hasAuthorization() {
             let status = await requestAuthorization()
             guard status == .authorized || status == .limited else {
                 return []

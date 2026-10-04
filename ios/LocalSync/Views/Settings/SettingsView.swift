@@ -34,12 +34,12 @@ public struct SettingsView: View {
                 }
                 .padding(.top, 8)
 
-                if let server = viewModel.pairedServer {
+                if viewModel.pairedServer != nil {
                     // 1. Status Dashboard Card
                     statusCard
 
                     // 2. Paired PC Details Card
-                    pairedPcCard(server: server)
+                    pairedPcCard
                 } else {
                     // Unpaired Hero Card
                     unpairedHeroCard
